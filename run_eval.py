@@ -1,11 +1,11 @@
 import torch
 
 from configs import TrainConfig
+from src.baselines import run_rl_policy_baseline
 from src.data import load_gsm8k_subset
-from src.prompt_space import PromptSpace
 from src.llm_client import build_llm_client
 from src.policy import PromptPolicy
-from src.trainer import PromptRLTrainer
+from src.prompt_space import PromptSpace
 
 
 def main():
@@ -29,17 +29,18 @@ def main():
 
     policy = PromptPolicy(input_dim=5, hidden_dim=32, n_actions=len(prompt_space))
     policy.load_state_dict(torch.load("prompt_policy.pt", map_location=device))
+    policy = policy.to(device)
 
-    trainer = PromptRLTrainer(
+    result = run_rl_policy_baseline(
+        dataset=test_ds,
         policy=policy,
         prompt_space=prompt_space,
         llm_client=llm_client,
-        train_config=cfg,
+        cfg=cfg,
         device=device,
     )
 
-    metrics = trainer.evaluate(test_ds)
-    print(metrics)
+    print(result)
 
 
 if __name__ == "__main__":

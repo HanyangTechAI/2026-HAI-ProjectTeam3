@@ -4,10 +4,6 @@ import torch.nn.functional as F
 
 
 class PromptPolicy(nn.Module):
-    """
-    Contextual bandit policy:
-    question feature -> action distribution
-    """
     def __init__(self, input_dim: int, hidden_dim: int, n_actions: int):
         super().__init__()
         self.net = nn.Sequential(

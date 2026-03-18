@@ -39,7 +39,12 @@ class PromptRLTrainer:
         question = sample["question"]
         gold = extract_gold_answer(sample["answer"])
 
-        features = torch.tensor(simple_question_features(question), dtype=torch.float32, device=self.device).unsqueeze(0)
+        features = torch.tensor(
+            simple_question_features(question),
+            dtype=torch.float32,
+            device=self.device,
+        ).unsqueeze(0)
+
         action, log_prob, entropy, probs = self.policy.sample_action(features)
         action_idx = int(action.item())
 
@@ -78,7 +83,7 @@ class PromptRLTrainer:
         total_correct = 0
 
         pbar = tqdm(dataset, desc="train", leave=False)
-        for sample in pbar:
+        for idx, sample in enumerate(pbar, start=1):
             result, log_prob, entropy = self.run_single(sample)
 
             loss = -(log_prob * result.reward) - 0.001 * entropy.mean()
@@ -93,7 +98,7 @@ class PromptRLTrainer:
 
             pbar.set_postfix(
                 reward=f"{result.reward:.4f}",
-                acc=f"{total_correct / max(1, (pbar.n + 1)):.4f}",
+                acc=f"{total_correct / idx:.4f}",
                 action=result.action_idx,
             )
 
@@ -116,7 +121,12 @@ class PromptRLTrainer:
             question = sample["question"]
             gold = extract_gold_answer(sample["answer"])
 
-            features = torch.tensor(simple_question_features(question), dtype=torch.float32, device=self.device).unsqueeze(0)
+            features = torch.tensor(
+                simple_question_features(question),
+                dtype=torch.float32,
+                device=self.device,
+            ).unsqueeze(0)
+
             logits = self.policy(features)
             action_idx = int(torch.argmax(logits, dim=-1).item())
 

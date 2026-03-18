@@ -8,9 +8,6 @@ def load_gsm8k_subset(dataset_name: str, dataset_config: str, split: str, n_samp
 
 
 def extract_gold_answer(answer_text: str) -> str:
-    """
-    GSM8K answer field usually ends with '#### <answer>'
-    """
     marker = "####"
     if marker in answer_text:
         return answer_text.split(marker)[-1].strip()
@@ -18,9 +15,6 @@ def extract_gold_answer(answer_text: str) -> str:
 
 
 def simple_question_features(question: str) -> list[float]:
-    """
-    초기 버전: 아주 단순한 handcrafted feature
-    """
     length = len(question)
     digit_count = sum(ch.isdigit() for ch in question)
     has_percent = 1.0 if "%" in question else 0.0

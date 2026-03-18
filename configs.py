@@ -10,6 +10,7 @@ class TrainConfig:
 
     train_samples: int = 200
     test_samples: int = 100
+    exhaustive_samples: int = 30
 
     model_name: str = "gpt-4.1-mini"
     max_new_tokens: int = 256
@@ -26,3 +27,6 @@ class TrainConfig:
     seed: int = 42
 
     api_mode: str = "mock"   # "openai" or "mock"
+
+    # 고정 baseline용 action index
+    fixed_action_indices: tuple[int, ...] = (0, 10, 20, 35)

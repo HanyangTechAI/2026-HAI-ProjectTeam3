@@ -1,0 +1,53 @@
+from configs import TrainConfig
+from src.baselines import run_exhaustive_search
+from src.data import load_gsm8k_subset
+from src.llm_client import build_llm_client
+from src.prompt_space import PromptSpace
+from src.utils import ensure_dir, save_json
+
+
+def main():
+    cfg = TrainConfig()
+
+    ds = load_gsm8k_subset(
+        dataset_name=cfg.dataset_name,
+        dataset_config=cfg.dataset_config,
+        split=cfg.test_split,
+        n_samples=cfg.exhaustive_samples,
+    )
+
+    prompt_space = PromptSpace()
+    llm_client = build_llm_client(
+        api_mode=cfg.api_mode,
+        model_name=cfg.model_name,
+        temperature=cfg.temperature,
+        max_new_tokens=cfg.max_new_tokens,
+    )
+
+    ensure_dir("outputs")
+
+    result = run_exhaustive_search(
+        dataset=ds,
+        prompt_space=prompt_space,
+        llm_client=llm_client,
+        cfg=cfg,
+    )
+
+    best_global_action_idx = result["best_global_action"]["action_idx"]
+    result["best_global_action_description"] = prompt_space.describe_action(best_global_action_idx)
+
+    save_json("outputs/exhaustive.json", result)
+
+    print("[RESULT] exhaustive search summary")
+    print(
+        {
+            "oracle_reward": result["oracle_reward"],
+            "oracle_accuracy": result["oracle_accuracy"],
+            "best_global_action": result["best_global_action"],
+            "best_global_action_description": result["best_global_action_description"],
+        }
+    )
+
+
+if __name__ == "__main__":
+    main()

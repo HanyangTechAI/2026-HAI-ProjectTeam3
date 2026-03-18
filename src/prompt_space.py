@@ -51,6 +51,16 @@ class PromptSpace:
     def get_action(self, idx: int) -> PromptAction:
         return self.actions[idx]
 
+    def describe_action(self, idx: int) -> dict:
+        action = self.get_action(idx)
+        return {
+            "action_idx": idx,
+            "instruction": INSTRUCTION_OPTIONS[action.instruction_idx],
+            "reasoning": REASONING_OPTIONS[action.reasoning_idx],
+            "format": FORMAT_OPTIONS[action.format_idx],
+            "self_check": SELF_CHECK_OPTIONS[action.self_check_idx],
+        }
+
     def render_prompt(self, action_idx: int, question: str) -> str:
         action = self.get_action(action_idx)
 

@@ -1,12 +1,12 @@
 import torch
 
 from configs import TrainConfig
-from src.utils import set_seed
 from src.data import load_gsm8k_subset
-from src.prompt_space import PromptSpace
 from src.llm_client import build_llm_client
 from src.policy import PromptPolicy
+from src.prompt_space import PromptSpace
 from src.trainer import PromptRLTrainer
+from src.utils import set_seed
 
 
 def main():
@@ -52,7 +52,7 @@ def main():
     )
 
     print(f"[INFO] device={device}")
-    print(f"[INFO] train_samples={len(train_ds)}, test_samples={len(test_ds)}")
+    print(f"[INFO] train_samples={len(train_ds)} test_samples={len(test_ds)}")
     print(f"[INFO] action_space={len(prompt_space)}")
 
     for epoch in range(1, cfg.epochs + 1):

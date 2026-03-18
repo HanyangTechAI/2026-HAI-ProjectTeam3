@@ -19,10 +19,6 @@ class BaseLLMClient:
 
 class MockLLMClient(BaseLLMClient):
     def generate(self, prompt: str) -> LLMResponse:
-        """
-        테스트용 mock.
-        실제 성능 검증은 안 되지만 파이프라인 확인 가능.
-        """
         text = "FINAL: 42"
         return LLMResponse(
             text=text,
@@ -48,8 +44,8 @@ class OpenAIChatClient(BaseLLMClient):
         )
 
         text = response.output_text
-
         usage = getattr(response, "usage", None)
+
         prompt_tokens = getattr(usage, "input_tokens", 0) if usage else 0
         completion_tokens = getattr(usage, "output_tokens", 0) if usage else 0
         total_tokens = getattr(usage, "total_tokens", prompt_tokens + completion_tokens) if usage else 0
