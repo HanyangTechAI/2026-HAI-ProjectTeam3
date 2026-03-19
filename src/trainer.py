@@ -1,12 +1,11 @@
 from dataclasses import dataclass
-from typing import Any
 
 import torch
 import torch.optim as optim
 from tqdm import tqdm
 
 from src.data import extract_gold_answer, simple_question_features
-from src.reward import extract_pred_answer, compute_reward, is_correct
+from src.reward import compute_reward, extract_pred_answer, is_correct
 
 
 @dataclass
@@ -35,7 +34,7 @@ class PromptRLTrainer:
         self.device = device
         self.optimizer = optim.Adam(self.policy.parameters(), lr=self.cfg.lr)
 
-    def run_single(self, sample: Any):
+    def run_single(self, sample):
         question = sample["question"]
         gold = extract_gold_answer(sample["answer"])
 
@@ -45,7 +44,7 @@ class PromptRLTrainer:
             device=self.device,
         ).unsqueeze(0)
 
-        action, log_prob, entropy, probs = self.policy.sample_action(features)
+        action, log_prob, entropy, _ = self.policy.sample_action(features)
         action_idx = int(action.item())
 
         prompt = self.prompt_space.render_prompt(action_idx, question)
@@ -81,6 +80,8 @@ class PromptRLTrainer:
         total_loss = 0.0
         total_reward = 0.0
         total_correct = 0
+        total_tokens = 0
+        action_hist = {}
 
         pbar = tqdm(dataset, desc="train", leave=False)
         for idx, sample in enumerate(pbar, start=1):
@@ -95,6 +96,8 @@ class PromptRLTrainer:
             total_loss += float(loss.item())
             total_reward += result.reward
             total_correct += int(result.correct)
+            total_tokens += int(result.total_tokens)
+            action_hist[result.action_idx] = action_hist.get(result.action_idx, 0) + 1
 
             pbar.set_postfix(
                 reward=f"{result.reward:.4f}",
@@ -107,6 +110,8 @@ class PromptRLTrainer:
             "loss": total_loss / n,
             "reward": total_reward / n,
             "accuracy": total_correct / n,
+            "avg_tokens": total_tokens / n,
+            "action_hist": dict(sorted(action_hist.items(), key=lambda x: x[1], reverse=True)),
         }
 
     @torch.no_grad()
@@ -114,6 +119,7 @@ class PromptRLTrainer:
         self.policy.eval()
         total_reward = 0.0
         total_correct = 0
+        total_tokens = 0
         action_hist = {}
 
         pbar = tqdm(dataset, desc="eval", leave=False)
@@ -149,10 +155,12 @@ class PromptRLTrainer:
 
             total_reward += reward
             total_correct += int(correct)
+            total_tokens += int(response.total_tokens)
 
         n = len(dataset)
         return {
             "reward": total_reward / n,
             "accuracy": total_correct / n,
+            "avg_tokens": total_tokens / n,
             "action_hist": dict(sorted(action_hist.items(), key=lambda x: x[1], reverse=True)),
         }

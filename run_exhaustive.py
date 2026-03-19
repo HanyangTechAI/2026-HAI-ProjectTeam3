@@ -1,3 +1,5 @@
+import os
+
 from configs import TrainConfig
 from src.baselines import run_exhaustive_search
 from src.data import load_gsm8k_subset
@@ -8,6 +10,7 @@ from src.utils import ensure_dir, save_json
 
 def main():
     cfg = TrainConfig()
+    ensure_dir(cfg.output_dir)
 
     ds = load_gsm8k_subset(
         dataset_name=cfg.dataset_name,
@@ -24,8 +27,6 @@ def main():
         max_new_tokens=cfg.max_new_tokens,
     )
 
-    ensure_dir("outputs")
-
     result = run_exhaustive_search(
         dataset=ds,
         prompt_space=prompt_space,
@@ -36,7 +37,8 @@ def main():
     best_global_action_idx = result["best_global_action"]["action_idx"]
     result["best_global_action_description"] = prompt_space.describe_action(best_global_action_idx)
 
-    save_json("outputs/exhaustive.json", result)
+    output_path = os.path.join(cfg.output_dir, cfg.exhaustive_json)
+    save_json(output_path, result)
 
     print("[RESULT] exhaustive search summary")
     print(
@@ -47,6 +49,7 @@ def main():
             "best_global_action_description": result["best_global_action_description"],
         }
     )
+    print(f"[INFO] saved exhaustive result -> {output_path}")
 
 
 if __name__ == "__main__":

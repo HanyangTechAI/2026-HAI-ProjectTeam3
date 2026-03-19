@@ -1,6 +1,5 @@
 import random
 from dataclasses import asdict
-from typing import Any
 
 import torch
 from tqdm import tqdm
@@ -126,10 +125,6 @@ def run_rl_policy_baseline(dataset, policy, prompt_space, llm_client, cfg, devic
 
 
 def run_exhaustive_search(dataset, prompt_space, llm_client, cfg):
-    """
-    sample마다 모든 action을 평가해서
-    sample-wise best action / global best action 둘 다 계산
-    """
     per_action = {
         idx: {"total_reward": 0.0, "total_correct": 0, "count": 0}
         for idx in range(len(prompt_space))

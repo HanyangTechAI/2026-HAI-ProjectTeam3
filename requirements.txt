@@ -4,3 +4,5 @@ tqdm>=4.66.0
 numpy>=1.26.0
 openai>=1.30.0
 python-dotenv>=1.0.1
+matplotlib>=3.8.0
+pandas>=2.2.0
