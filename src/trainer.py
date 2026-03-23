@@ -4,7 +4,7 @@ import torch
 import torch.optim as optim
 from tqdm import tqdm
 
-from src.data import extract_gold_answer, simple_question_features
+from src.data import extract_gold_answer
 from src.reward import compute_reward, extract_pred_answer, is_correct
 
 
@@ -34,17 +34,13 @@ class PromptRLTrainer:
         self.device = device
         self.optimizer = optim.Adam(self.policy.parameters(), lr=self.cfg.lr)
 
-    def run_single(self, sample):
+    def run_single(self, sample, embedding: torch.Tensor):
         question = sample["question"]
         gold = extract_gold_answer(sample["answer"])
 
-        features = torch.tensor(
-            simple_question_features(question),
-            dtype=torch.float32,
-            device=self.device,
-        ).unsqueeze(0)
+        x = embedding.to(self.device).unsqueeze(0)
 
-        action, log_prob, entropy, _ = self.policy.sample_action(features)
+        action, log_prob, entropy, _ = self.policy.sample_action(x)
         action_idx = int(action.item())
 
         prompt = self.prompt_space.render_prompt(action_idx, question)
@@ -75,7 +71,7 @@ class PromptRLTrainer:
             entropy,
         )
 
-    def train_epoch(self, dataset):
+    def train_epoch(self, dataset, embeddings: torch.Tensor):
         self.policy.train()
         total_loss = 0.0
         total_reward = 0.0
@@ -83,11 +79,14 @@ class PromptRLTrainer:
         total_tokens = 0
         action_hist = {}
 
-        pbar = tqdm(dataset, desc="train", leave=False)
-        for idx, sample in enumerate(pbar, start=1):
-            result, log_prob, entropy = self.run_single(sample)
+        pbar = tqdm(range(len(dataset)), desc="train", leave=False)
+        for idx in pbar:
+            sample = dataset[idx]
+            embedding = embeddings[idx]
 
-            loss = -(log_prob * result.reward) - 0.001 * entropy.mean()
+            result, log_prob, entropy = self.run_single(sample, embedding)
+
+            loss = -(log_prob * result.reward) - self.cfg.entropy_coef * entropy.mean()
 
             self.optimizer.zero_grad()
             loss.backward()
@@ -99,9 +98,10 @@ class PromptRLTrainer:
             total_tokens += int(result.total_tokens)
             action_hist[result.action_idx] = action_hist.get(result.action_idx, 0) + 1
 
+            seen = idx + 1
             pbar.set_postfix(
                 reward=f"{result.reward:.4f}",
-                acc=f"{total_correct / idx:.4f}",
+                acc=f"{total_correct / seen:.4f}",
                 action=result.action_idx,
             )
 
@@ -115,27 +115,22 @@ class PromptRLTrainer:
         }
 
     @torch.no_grad()
-    def evaluate(self, dataset):
+    def evaluate(self, dataset, embeddings: torch.Tensor):
         self.policy.eval()
         total_reward = 0.0
         total_correct = 0
         total_tokens = 0
         action_hist = {}
 
-        pbar = tqdm(dataset, desc="eval", leave=False)
-        for sample in pbar:
+        pbar = tqdm(range(len(dataset)), desc="eval", leave=False)
+        for idx in pbar:
+            sample = dataset[idx]
             question = sample["question"]
             gold = extract_gold_answer(sample["answer"])
 
-            features = torch.tensor(
-                simple_question_features(question),
-                dtype=torch.float32,
-                device=self.device,
-            ).unsqueeze(0)
-
-            logits = self.policy(features)
+            x = embeddings[idx].to(self.device).unsqueeze(0)
+            logits = self.policy(x)
             action_idx = int(torch.argmax(logits, dim=-1).item())
-
             action_hist[action_idx] = action_hist.get(action_idx, 0) + 1
 
             prompt = self.prompt_space.render_prompt(action_idx, question)

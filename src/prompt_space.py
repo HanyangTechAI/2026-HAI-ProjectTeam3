@@ -73,5 +73,4 @@ class PromptSpace:
             f"Question: {question}",
         ]
 
-        prompt = "\n".join(part for part in parts if part.strip())
-        return prompt
+        return "\n".join(part for part in parts if part.strip())

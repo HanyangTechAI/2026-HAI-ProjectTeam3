@@ -2,9 +2,7 @@ import re
 
 
 def normalize_number_string(text: str) -> str:
-    text = text.strip()
-    text = text.replace(",", "")
-    return text
+    return text.strip().replace(",", "")
 
 
 def extract_pred_answer(text: str) -> str:

@@ -4,8 +4,8 @@ from dataclasses import asdict
 import torch
 from tqdm import tqdm
 
-from src.data import extract_gold_answer, simple_question_features
 from src.evaluator import evaluate_single_action_on_sample
+from src.data import extract_gold_answer
 from src.reward import compute_reward, extract_pred_answer, is_correct
 
 
@@ -69,19 +69,19 @@ def run_fixed_action_baseline(dataset, fixed_action_idx: int, prompt_space, llm_
 
 
 @torch.no_grad()
-def run_rl_policy_baseline(dataset, policy, prompt_space, llm_client, cfg, device: str = "cpu"):
+def run_rl_policy_baseline(dataset, embeddings, policy, prompt_space, llm_client, cfg, device: str = "cpu"):
     policy.eval()
     total_reward = 0.0
     total_correct = 0
     action_hist = {}
     records = []
 
-    for sample in tqdm(dataset, desc="rl_policy", leave=False):
+    for idx, sample in enumerate(tqdm(dataset, desc="rl_policy", leave=False)):
         question = sample["question"]
         gold = extract_gold_answer(sample["answer"])
 
-        features = torch.tensor(simple_question_features(question), dtype=torch.float32, device=device).unsqueeze(0)
-        logits = policy(features)
+        x = embeddings[idx].to(device).unsqueeze(0)
+        logits = policy(x)
         action_idx = int(torch.argmax(logits, dim=-1).item())
 
         prompt = prompt_space.render_prompt(action_idx, question)
@@ -101,6 +101,7 @@ def run_rl_policy_baseline(dataset, policy, prompt_space, llm_client, cfg, devic
         total_reward += reward
         total_correct += int(correct)
         action_hist[action_idx] = action_hist.get(action_idx, 0) + 1
+
         records.append(
             {
                 "question": question,

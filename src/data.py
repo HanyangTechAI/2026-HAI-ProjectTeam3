@@ -12,19 +12,3 @@ def extract_gold_answer(answer_text: str) -> str:
     if marker in answer_text:
         return answer_text.split(marker)[-1].strip()
     return answer_text.strip()
-
-
-def simple_question_features(question: str) -> list[float]:
-    length = len(question)
-    digit_count = sum(ch.isdigit() for ch in question)
-    has_percent = 1.0 if "%" in question else 0.0
-    has_money = 1.0 if "$" in question else 0.0
-    has_more_than_one_sentence = 1.0 if question.count(".") + question.count("?") > 1 else 0.0
-
-    return [
-        float(length) / 300.0,
-        float(digit_count) / 20.0,
-        has_percent,
-        has_money,
-        has_more_than_one_sentence,
-    ]

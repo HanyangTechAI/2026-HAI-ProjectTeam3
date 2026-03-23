@@ -59,3 +59,21 @@ def flatten_dict(d: dict, parent_key: str = "", sep: str = ".") -> dict:
         else:
             items.append((new_key, value))
     return dict(items)
+
+
+def safe_float(value: Any, default: float = 0.0) -> float:
+    try:
+        return float(value)
+    except Exception:
+        return default
+
+
+def print_artifact_summary(title: str, artifact_paths: dict[str, str]) -> None:
+    print(f"[INFO] {title}")
+    for artifact_name, artifact_path in artifact_paths.items():
+        abs_path = os.path.abspath(artifact_path)
+        status = "exists" if os.path.exists(abs_path) else "missing"
+        print(
+            f"[INFO] {artifact_name}: name={os.path.basename(abs_path)} "
+            f"path={abs_path} status={status}"
+        )

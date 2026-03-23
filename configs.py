@@ -16,7 +16,7 @@ class TrainConfig:
     max_new_tokens: int = 256
     temperature: float = 0.2
 
-    lr: float = 1e-2
+    lr: float = 1e-3
     epochs: int = 3
     batch_size: int = 8
 
@@ -24,6 +24,7 @@ class TrainConfig:
     reward_wrong: float = 0.0
     token_penalty_coef: float = 0.0005
 
+    entropy_coef: float = 0.001
     seed: int = 42
 
     api_mode: str = "openai"   # "openai" or "mock"
@@ -43,3 +44,13 @@ class TrainConfig:
     action_hist_png: str = "action_hist.png"
     baseline_bar_png: str = "baseline_accuracy.png"
     exhaustive_action_png: str = "exhaustive_action_scores.png"
+
+    embedding_model_name: str = "sentence-transformers/all-MiniLM-L6-v2"
+    normalize_embeddings: bool = True
+    embedding_batch_size: int = 64
+    train_embedding_cache: str = "train_embeddings.pt"
+    test_embedding_cache: str = "test_embeddings.pt"
+    exhaustive_embedding_cache: str = "exhaustive_embeddings.pt"
+
+    policy_hidden_dim: int = 256
+    policy_dropout: float = 0.1
