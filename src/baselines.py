@@ -4,8 +4,8 @@ from dataclasses import asdict
 import torch
 from tqdm import tqdm
 
-from src.evaluator import evaluate_single_action_on_sample
 from src.data import extract_gold_answer
+from src.evaluator import evaluate_single_action_on_sample
 from src.reward import compute_reward, extract_pred_answer, is_correct
 
 
@@ -69,8 +69,8 @@ def run_fixed_action_baseline(dataset, fixed_action_idx: int, prompt_space, llm_
 
 
 @torch.no_grad()
-def run_rl_policy_baseline(dataset, embeddings, policy, prompt_space, llm_client, cfg, device: str = "cpu"):
-    policy.eval()
+def run_rl_policy_baseline(dataset, embeddings, model, prompt_space, llm_client, cfg, device: str = "cpu"):
+    model.eval()
     total_reward = 0.0
     total_correct = 0
     action_hist = {}
@@ -81,8 +81,8 @@ def run_rl_policy_baseline(dataset, embeddings, policy, prompt_space, llm_client
         gold = extract_gold_answer(sample["answer"])
 
         x = embeddings[idx].to(device).unsqueeze(0)
-        logits = policy(x)
-        action_idx = int(torch.argmax(logits, dim=-1).item())
+        action, pred_value = model.greedy_action(x)
+        action_idx = int(action.item())
 
         prompt = prompt_space.render_prompt(action_idx, question)
         response = llm_client.generate(prompt)
@@ -109,6 +109,7 @@ def run_rl_policy_baseline(dataset, embeddings, policy, prompt_space, llm_client
                 "pred": pred,
                 "correct": correct,
                 "reward": reward,
+                "predicted_value": float(pred_value.item()),
                 "total_tokens": response.total_tokens,
                 "action_idx": action_idx,
                 "raw_text": response.text,

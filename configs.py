@@ -16,7 +16,7 @@ class TrainConfig:
     max_new_tokens: int = 256
     temperature: float = 0.2
 
-    lr: float = 1e-3
+    lr: float = 5e-4
     epochs: int = 3
     batch_size: int = 8
 
@@ -25,8 +25,10 @@ class TrainConfig:
     token_penalty_coef: float = 0.0005
 
     entropy_coef: float = 0.001
-    seed: int = 42
+    value_loss_coef: float = 0.5
+    grad_clip_norm: float = 1.0
 
+    seed: int = 42
     api_mode: str = "openai"   # "openai" or "mock"
 
     fixed_action_indices: tuple[int, ...] = (0, 10, 20, 35)

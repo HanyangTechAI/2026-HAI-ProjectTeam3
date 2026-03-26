@@ -63,7 +63,6 @@ class PromptSpace:
 
     def render_prompt(self, action_idx: int, question: str) -> str:
         action = self.get_action(action_idx)
-
         parts = [
             INSTRUCTION_OPTIONS[action.instruction_idx],
             REASONING_OPTIONS[action.reasoning_idx],
@@ -72,5 +71,4 @@ class PromptSpace:
             "",
             f"Question: {question}",
         ]
-
         return "\n".join(part for part in parts if part.strip())

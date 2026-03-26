@@ -1,5 +1,4 @@
 import os
-from typing import Iterable
 
 import torch
 from sentence_transformers import SentenceTransformer
@@ -13,11 +12,9 @@ class QuestionEmbedder:
         normalize_embeddings: bool = True,
         batch_size: int = 64,
     ):
-        self.model_name = model_name
-        self.device = device
+        self.model = SentenceTransformer(model_name, device=device)
         self.normalize_embeddings = normalize_embeddings
         self.batch_size = batch_size
-        self.model = SentenceTransformer(model_name, device=device)
 
     def encode_questions(self, questions: list[str]) -> torch.Tensor:
         embeddings = self.model.encode(
@@ -30,10 +27,6 @@ class QuestionEmbedder:
         if not isinstance(embeddings, torch.Tensor):
             embeddings = torch.tensor(embeddings, dtype=torch.float32)
         return embeddings.float().cpu()
-
-    def get_embedding_dim(self) -> int:
-        test = self.encode_questions(["test question"])
-        return int(test.shape[-1])
 
 
 def build_embedding_cache(
