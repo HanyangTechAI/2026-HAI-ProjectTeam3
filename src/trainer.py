@@ -16,6 +16,8 @@ class StepResult:
     pred: str
     gold: str
     action_idx: int
+    prompt_tokens: int
+    completion_tokens: int
     total_tokens: int
     predicted_value: float
     advantage: float
@@ -53,10 +55,12 @@ class PromptRLTrainer:
         reward = compute_reward(
             pred=pred,
             gold=gold,
-            total_tokens=response.total_tokens,
+            prompt_tokens=response.prompt_tokens,
+            completion_tokens=response.completion_tokens,
             reward_correct=self.cfg.reward_correct,
             reward_wrong=self.cfg.reward_wrong,
-            token_penalty_coef=self.cfg.token_penalty_coef,
+            prompt_token_penalty_coef=self.cfg.prompt_token_penalty_coef,
+            completion_token_penalty_coef=self.cfg.completion_token_penalty_coef,
         )
 
         reward_tensor = torch.tensor([reward], dtype=torch.float32, device=self.device)
@@ -81,6 +85,8 @@ class PromptRLTrainer:
                 pred=pred,
                 gold=gold,
                 action_idx=action_idx,
+                prompt_tokens=response.prompt_tokens,
+                completion_tokens=response.completion_tokens,
                 total_tokens=response.total_tokens,
                 predicted_value=float(value.item()),
                 advantage=float(advantage.item()),
@@ -100,6 +106,8 @@ class PromptRLTrainer:
         total_entropy_sum = 0.0
         total_reward = 0.0
         total_correct = 0
+        total_prompt_tokens = 0
+        total_completion_tokens = 0
         total_tokens = 0
         total_abs_advantage = 0.0
         action_hist = {}
@@ -122,6 +130,8 @@ class PromptRLTrainer:
             total_entropy_sum += float(entropy.item())
             total_reward += result.reward
             total_correct += int(result.correct)
+            total_prompt_tokens += int(result.prompt_tokens)
+            total_completion_tokens += int(result.completion_tokens)
             total_tokens += int(result.total_tokens)
             total_abs_advantage += abs(result.advantage)
             action_hist[result.action_idx] = action_hist.get(result.action_idx, 0) + 1
@@ -142,6 +152,8 @@ class PromptRLTrainer:
             "entropy": total_entropy_sum / n,
             "reward": total_reward / n,
             "accuracy": total_correct / n,
+            "avg_prompt_tokens": total_prompt_tokens / n,
+            "avg_completion_tokens": total_completion_tokens / n,
             "avg_tokens": total_tokens / n,
             "avg_abs_advantage": total_abs_advantage / n,
             "action_hist": dict(sorted(action_hist.items(), key=lambda x: x[1], reverse=True)),
@@ -153,6 +165,8 @@ class PromptRLTrainer:
 
         total_reward = 0.0
         total_correct = 0
+        total_prompt_tokens = 0
+        total_completion_tokens = 0
         total_tokens = 0
         total_predicted_value = 0.0
         total_abs_value_error = 0.0
@@ -178,16 +192,20 @@ class PromptRLTrainer:
             reward = compute_reward(
                 pred=pred,
                 gold=gold,
-                total_tokens=response.total_tokens,
+                prompt_tokens=response.prompt_tokens,
+                completion_tokens=response.completion_tokens,
                 reward_correct=self.cfg.reward_correct,
                 reward_wrong=self.cfg.reward_wrong,
-                token_penalty_coef=self.cfg.token_penalty_coef,
+                prompt_token_penalty_coef=self.cfg.prompt_token_penalty_coef,
+                completion_token_penalty_coef=self.cfg.completion_token_penalty_coef,
             )
 
             correct = is_correct(pred, gold)
 
             total_reward += reward
             total_correct += int(correct)
+            total_prompt_tokens += int(response.prompt_tokens)
+            total_completion_tokens += int(response.completion_tokens)
             total_tokens += int(response.total_tokens)
             total_predicted_value += pred_value
             total_abs_value_error += abs(pred_value - reward)
@@ -196,6 +214,8 @@ class PromptRLTrainer:
         return {
             "reward": total_reward / n,
             "accuracy": total_correct / n,
+            "avg_prompt_tokens": total_prompt_tokens / n,
+            "avg_completion_tokens": total_completion_tokens / n,
             "avg_tokens": total_tokens / n,
             "avg_predicted_value": total_predicted_value / n,
             "avg_abs_value_error": total_abs_value_error / n,

@@ -5,23 +5,23 @@ from itertools import product
 INSTRUCTION_OPTIONS = [
     "Solve the following math word problem carefully.",
     "You are a precise mathematical reasoning assistant. Solve the problem accurately.",
-    "Read the problem step by step and compute the final numeric answer.",
+    "Read the problem carefully and compute the final numeric answer.",
 ]
 
 REASONING_OPTIONS = [
     "",
-    "Think step by step before giving the final answer.",
-    "Reason carefully, verify intermediate calculations, then provide the final answer.",
+    "Think carefully internally before answering.",
+    "Reason through the problem internally, verify the calculation internally, and then output only the final answer.",
 ]
 
 FORMAT_OPTIONS = [
-    "Return only the final answer in the format: FINAL: <number>",
-    "At the end, output exactly one line: FINAL: <number>",
+    "Do not show any reasoning steps. Output exactly one line in this format: FINAL: <number>",
+    "Your entire response must be exactly one line and nothing else: FINAL: <number>",
 ]
 
 SELF_CHECK_OPTIONS = [
     "",
-    "Double-check your arithmetic before the final answer.",
+    "Double-check your arithmetic internally before outputting the final answer.",
 ]
 
 

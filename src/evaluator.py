@@ -12,6 +12,8 @@ class EvalRecord:
     pred: str
     correct: bool
     reward: float
+    prompt_tokens: int
+    completion_tokens: int
     total_tokens: int
     action_idx: int
     raw_text: str
@@ -26,13 +28,16 @@ def evaluate_single_action_on_sample(sample: Any, action_idx: int, prompt_space,
 
     pred = extract_pred_answer(response.text)
     correct = is_correct(pred, gold)
+
     reward = compute_reward(
         pred=pred,
         gold=gold,
-        total_tokens=response.total_tokens,
+        prompt_tokens=response.prompt_tokens,
+        completion_tokens=response.completion_tokens,
         reward_correct=cfg.reward_correct,
         reward_wrong=cfg.reward_wrong,
-        token_penalty_coef=cfg.token_penalty_coef,
+        prompt_token_penalty_coef=cfg.prompt_token_penalty_coef,
+        completion_token_penalty_coef=cfg.completion_token_penalty_coef,
     )
 
     return EvalRecord(
@@ -41,7 +46,10 @@ def evaluate_single_action_on_sample(sample: Any, action_idx: int, prompt_space,
         pred=pred,
         correct=correct,
         reward=reward,
-        total_tokens=response.total_tokens,
+        prompt_tokens=response.prompt_tokens,
+        completion_tokens=response.completion_tokens,
+        prompt_tokens=response.prompt_tokens,
+        completion_tokens=response.completion_tokens,
         action_idx=action_idx,
         raw_text=response.text,
     )

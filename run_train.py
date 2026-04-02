@@ -91,10 +91,26 @@ def main():
     print(f"[INFO] embedding_dim={input_dim}")
 
     history = []
+    best_eval_acc = -1
+    best_epoch = -1
 
     for epoch in range(1, cfg.epochs + 1):
         train_metrics = trainer.train_epoch(train_ds, train_embeddings)
         eval_metrics = trainer.evaluate(test_ds, test_embeddings)
+
+        eval_acc = eval_metrics["accuracy"]
+
+        if eval_acc > best_eval_acc:
+            best_eval_acc = eval_acc
+            best_epoch = epoch
+
+            torch.save({
+                "model_state_dict": trainer.model.state_dict(),
+                "epoch": epoch,
+                "eval_acc": eval_acc,
+            }, "best_model.pt")
+
+            print(f"[BEST] epoch={epoch} acc={eval_acc:.4f}")
 
         row = {
             "epoch": epoch,
@@ -104,10 +120,14 @@ def main():
             "train_entropy": train_metrics["entropy"],
             "train_reward": train_metrics["reward"],
             "train_accuracy": train_metrics["accuracy"],
+            "train_avg_prompt_tokens": train_metrics["avg_prompt_tokens"],
+            "train_avg_completion_tokens": train_metrics["avg_completion_tokens"],
             "train_avg_tokens": train_metrics["avg_tokens"],
             "train_avg_abs_advantage": train_metrics["avg_abs_advantage"],
             "eval_reward": eval_metrics["reward"],
             "eval_accuracy": eval_metrics["accuracy"],
+            "eval_avg_prompt_tokens": eval_metrics["avg_prompt_tokens"],
+            "eval_avg_completion_tokens": eval_metrics["avg_completion_tokens"],
             "eval_avg_tokens": eval_metrics["avg_tokens"],
             "eval_avg_predicted_value": eval_metrics["avg_predicted_value"],
             "eval_avg_abs_value_error": eval_metrics["avg_abs_value_error"],
@@ -124,7 +144,8 @@ def main():
             f"train_acc={train_metrics['accuracy']:.4f} "
             f"eval_reward={eval_metrics['reward']:.4f} "
             f"eval_acc={eval_metrics['accuracy']:.4f} "
-            f"eval_value_err={eval_metrics['avg_abs_value_error']:.4f}"
+            f"eval_prompt_tok={eval_metrics['avg_prompt_tokens']:.2f} "
+            f"eval_completion_tok={eval_metrics['avg_completion_tokens']:.2f}"
         )
         print(f"[EPOCH {epoch}] train_top_actions={list(train_metrics['action_hist'].items())[:5]}")
         print(f"[EPOCH {epoch}] eval_top_actions={list(eval_metrics['action_hist'].items())[:5]}")
