@@ -1,0 +1,4 @@
+configs.py에 
+n_reward_rollouts: int = 5(반복횟수 추가)
+
+src/evaluator.py, src/trainer.py에서 평균reward를 사용하도록 수정..
