@@ -6,7 +6,7 @@ from configs import TrainConfig
 from src.data import load_gsm8k_subset
 from src.embedder import build_embedding_cache
 from src.llm_client import build_llm_client
-from src.policy import PromptActorCritic
+from src.policy import PromptPolicy
 from src.prompt_space import PromptSpace
 from src.trainer import PromptRLTrainer
 from src.utils import ensure_dir, print_artifact_summary, save_csv, save_json, set_seed
@@ -69,7 +69,7 @@ def main():
         max_new_tokens=cfg.max_new_tokens,
     )
 
-    model = PromptActorCritic(
+    policy = PromptPolicy(
         input_dim=input_dim,
         hidden_dim=cfg.policy_hidden_dim,
         n_actions=len(prompt_space),
@@ -77,7 +77,7 @@ def main():
     )
 
     trainer = PromptRLTrainer(
-        model=model,
+        policy=policy,
         prompt_space=prompt_space,
         llm_client=llm_client,
         train_config=cfg,
@@ -91,46 +91,20 @@ def main():
     print(f"[INFO] embedding_dim={input_dim}")
 
     history = []
-    best_eval_acc = -1
-    best_epoch = -1
 
     for epoch in range(1, cfg.epochs + 1):
         train_metrics = trainer.train_epoch(train_ds, train_embeddings)
         eval_metrics = trainer.evaluate(test_ds, test_embeddings)
 
-        eval_acc = eval_metrics["accuracy"]
-
-        if eval_acc > best_eval_acc:
-            best_eval_acc = eval_acc
-            best_epoch = epoch
-
-            torch.save({
-                "model_state_dict": trainer.model.state_dict(),
-                "epoch": epoch,
-                "eval_acc": eval_acc,
-            }, "best_model.pt")
-
-            print(f"[BEST] epoch={epoch} acc={eval_acc:.4f}")
-
         row = {
             "epoch": epoch,
             "train_loss": train_metrics["loss"],
-            "train_policy_loss": train_metrics["policy_loss"],
-            "train_value_loss": train_metrics["value_loss"],
-            "train_entropy": train_metrics["entropy"],
             "train_reward": train_metrics["reward"],
             "train_accuracy": train_metrics["accuracy"],
-            "train_avg_prompt_tokens": train_metrics["avg_prompt_tokens"],
-            "train_avg_completion_tokens": train_metrics["avg_completion_tokens"],
             "train_avg_tokens": train_metrics["avg_tokens"],
-            "train_avg_abs_advantage": train_metrics["avg_abs_advantage"],
             "eval_reward": eval_metrics["reward"],
             "eval_accuracy": eval_metrics["accuracy"],
-            "eval_avg_prompt_tokens": eval_metrics["avg_prompt_tokens"],
-            "eval_avg_completion_tokens": eval_metrics["avg_completion_tokens"],
             "eval_avg_tokens": eval_metrics["avg_tokens"],
-            "eval_avg_predicted_value": eval_metrics["avg_predicted_value"],
-            "eval_avg_abs_value_error": eval_metrics["avg_abs_value_error"],
             "train_top_action": next(iter(train_metrics["action_hist"].keys()), None),
             "eval_top_action": next(iter(eval_metrics["action_hist"].keys()), None),
         }
@@ -139,13 +113,10 @@ def main():
         print(
             f"[EPOCH {epoch}] "
             f"train_loss={train_metrics['loss']:.4f} "
-            f"policy_loss={train_metrics['policy_loss']:.4f} "
-            f"value_loss={train_metrics['value_loss']:.4f} "
+            f"train_reward={train_metrics['reward']:.4f} "
             f"train_acc={train_metrics['accuracy']:.4f} "
             f"eval_reward={eval_metrics['reward']:.4f} "
-            f"eval_acc={eval_metrics['accuracy']:.4f} "
-            f"eval_prompt_tok={eval_metrics['avg_prompt_tokens']:.2f} "
-            f"eval_completion_tok={eval_metrics['avg_completion_tokens']:.2f}"
+            f"eval_acc={eval_metrics['accuracy']:.4f}"
         )
         print(f"[EPOCH {epoch}] train_top_actions={list(train_metrics['action_hist'].items())[:5]}")
         print(f"[EPOCH {epoch}] eval_top_actions={list(eval_metrics['action_hist'].items())[:5]}")
@@ -153,16 +124,15 @@ def main():
     model_path = os.path.join(cfg.output_dir, "prompt_policy.pt")
     torch.save(
         {
-            "state_dict": model.state_dict(),
+            "state_dict": policy.state_dict(),
             "input_dim": input_dim,
             "hidden_dim": cfg.policy_hidden_dim,
             "dropout": cfg.policy_dropout,
             "n_actions": len(prompt_space),
-            "model_type": "actor_critic",
         },
         model_path,
     )
-    print(f"[INFO] saved model -> {model_path}")
+    print(f"[INFO] saved policy -> {model_path}")
 
     train_history_json_path = os.path.join(cfg.output_dir, cfg.train_log_json)
     train_history_csv_path = os.path.join(cfg.output_dir, cfg.train_log_csv)

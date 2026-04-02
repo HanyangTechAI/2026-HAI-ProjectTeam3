@@ -4,8 +4,8 @@ from dataclasses import asdict
 import torch
 from tqdm import tqdm
 
-from src.data import extract_gold_answer
 from src.evaluator import evaluate_single_action_on_sample
+from src.data import extract_gold_answer
 from src.reward import compute_reward, extract_pred_answer, is_correct
 
 
@@ -69,12 +69,10 @@ def run_fixed_action_baseline(dataset, fixed_action_idx: int, prompt_space, llm_
 
 
 @torch.no_grad()
-def run_rl_policy_baseline(dataset, embeddings, model, prompt_space, llm_client, cfg, device: str = "cpu"):
-    model.eval()
+def run_rl_policy_baseline(dataset, embeddings, policy, prompt_space, llm_client, cfg, device: str = "cpu"):
+    policy.eval()
     total_reward = 0.0
     total_correct = 0
-    total_prompt_tokens = 0
-    total_completion_tokens = 0
     action_hist = {}
     records = []
 
@@ -83,8 +81,8 @@ def run_rl_policy_baseline(dataset, embeddings, model, prompt_space, llm_client,
         gold = extract_gold_answer(sample["answer"])
 
         x = embeddings[idx].to(device).unsqueeze(0)
-        action, pred_value = model.greedy_action(x)
-        action_idx = int(action.item())
+        logits = policy(x)
+        action_idx = int(torch.argmax(logits, dim=-1).item())
 
         prompt = prompt_space.render_prompt(action_idx, question)
         response = llm_client.generate(prompt)
@@ -94,18 +92,14 @@ def run_rl_policy_baseline(dataset, embeddings, model, prompt_space, llm_client,
         reward = compute_reward(
             pred=pred,
             gold=gold,
-            prompt_tokens=response.prompt_tokens,
-            completion_tokens=response.completion_tokens,
+            total_tokens=response.total_tokens,
             reward_correct=cfg.reward_correct,
             reward_wrong=cfg.reward_wrong,
-            prompt_token_penalty_coef=cfg.prompt_token_penalty_coef,
-            completion_token_penalty_coef=cfg.completion_token_penalty_coef,
+            token_penalty_coef=cfg.token_penalty_coef,
         )
 
         total_reward += reward
         total_correct += int(correct)
-        total_prompt_tokens += int(response.prompt_tokens)
-        total_completion_tokens += int(response.completion_tokens)
         action_hist[action_idx] = action_hist.get(action_idx, 0) + 1
 
         records.append(
@@ -115,9 +109,6 @@ def run_rl_policy_baseline(dataset, embeddings, model, prompt_space, llm_client,
                 "pred": pred,
                 "correct": correct,
                 "reward": reward,
-                "predicted_value": float(pred_value.item()),
-                "prompt_tokens": response.prompt_tokens,
-                "completion_tokens": response.completion_tokens,
                 "total_tokens": response.total_tokens,
                 "action_idx": action_idx,
                 "raw_text": response.text,
@@ -129,8 +120,6 @@ def run_rl_policy_baseline(dataset, embeddings, model, prompt_space, llm_client,
         "name": "rl_policy",
         "reward": total_reward / n,
         "accuracy": total_correct / n,
-        "avg_prompt_tokens": total_prompt_tokens / n,
-        "avg_completion_tokens": total_completion_tokens / n,
         "action_hist": dict(sorted(action_hist.items(), key=lambda x: x[1], reverse=True)),
         "records": records,
     }

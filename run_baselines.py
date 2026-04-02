@@ -11,7 +11,7 @@ from src.baselines import (
 from src.data import load_gsm8k_subset
 from src.embedder import build_embedding_cache
 from src.llm_client import build_llm_client
-from src.policy import PromptActorCritic
+from src.policy import PromptPolicy
 from src.prompt_space import PromptSpace
 from src.utils import ensure_dir, print_artifact_summary, save_csv, save_json
 
@@ -96,19 +96,19 @@ def main():
     model_path = os.path.join(cfg.output_dir, "prompt_policy.pt")
     if os.path.exists(model_path):
         checkpoint = torch.load(model_path, map_location=device)
-        model = PromptActorCritic(
+        policy = PromptPolicy(
             input_dim=checkpoint["input_dim"],
             hidden_dim=checkpoint["hidden_dim"],
             n_actions=checkpoint["n_actions"],
             dropout=checkpoint["dropout"],
         )
-        model.load_state_dict(checkpoint["state_dict"])
-        model = model.to(device)
+        policy.load_state_dict(checkpoint["state_dict"])
+        policy = policy.to(device)
 
         rl_result = run_rl_policy_baseline(
             dataset=test_ds,
             embeddings=test_embeddings,
-            model=model,
+            policy=policy,
             prompt_space=prompt_space,
             llm_client=llm_client,
             cfg=cfg,

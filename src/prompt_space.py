@@ -5,23 +5,23 @@ from itertools import product
 INSTRUCTION_OPTIONS = [
     "Solve the following math word problem carefully.",
     "You are a precise mathematical reasoning assistant. Solve the problem accurately.",
-    "Read the problem carefully and compute the final numeric answer.",
+    "Read the problem step by step and compute the final numeric answer.",
 ]
 
 REASONING_OPTIONS = [
     "",
-    "Think carefully internally before answering.",
-    "Reason through the problem internally, verify the calculation internally, and then output only the final answer.",
+    "Think step by step before giving the final answer.",
+    "Reason carefully, verify intermediate calculations, then provide the final answer.",
 ]
 
 FORMAT_OPTIONS = [
-    "Do not show any reasoning steps. Output exactly one line in this format: FINAL: <number>",
-    "Your entire response must be exactly one line and nothing else: FINAL: <number>",
+    "Return only the final answer in the format: FINAL: <number>",
+    "At the end, output exactly one line: FINAL: <number>",
 ]
 
 SELF_CHECK_OPTIONS = [
     "",
-    "Double-check your arithmetic internally before outputting the final answer.",
+    "Double-check your arithmetic before the final answer.",
 ]
 
 
@@ -63,6 +63,7 @@ class PromptSpace:
 
     def render_prompt(self, action_idx: int, question: str) -> str:
         action = self.get_action(action_idx)
+
         parts = [
             INSTRUCTION_OPTIONS[action.instruction_idx],
             REASONING_OPTIONS[action.reasoning_idx],
@@ -71,4 +72,5 @@ class PromptSpace:
             "",
             f"Question: {question}",
         ]
+
         return "\n".join(part for part in parts if part.strip())

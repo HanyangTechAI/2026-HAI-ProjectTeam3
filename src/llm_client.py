@@ -20,15 +20,11 @@ class BaseLLMClient:
 class MockLLMClient(BaseLLMClient):
     def generate(self, prompt: str) -> LLMResponse:
         text = "FINAL: 42"
-        prompt_tokens = max(1, len(prompt) // 4)
-        completion_tokens = max(1, len(text) // 4)
-        total_tokens = prompt_tokens + completion_tokens
-
         return LLMResponse(
             text=text,
-            prompt_tokens=prompt_tokens,
-            completion_tokens=completion_tokens,
-            total_tokens=total_tokens,
+            prompt_tokens=max(1, len(prompt) // 4),
+            completion_tokens=max(1, len(text) // 4),
+            total_tokens=max(2, len(prompt) // 4 + len(text) // 4),
         )
 
 
@@ -52,10 +48,7 @@ class OpenAIChatClient(BaseLLMClient):
 
         prompt_tokens = getattr(usage, "input_tokens", 0) if usage else 0
         completion_tokens = getattr(usage, "output_tokens", 0) if usage else 0
-        total_tokens = (
-            getattr(usage, "total_tokens", prompt_tokens + completion_tokens)
-            if usage else prompt_tokens + completion_tokens
-        )
+        total_tokens = getattr(usage, "total_tokens", prompt_tokens + completion_tokens) if usage else 0
 
         return LLMResponse(
             text=text,
