@@ -1,5 +1,6 @@
 import os
-
+import random
+import numpy as np
 import torch
 
 from configs import TrainConfig
@@ -8,9 +9,8 @@ from src.embedder import build_embedding_cache
 from src.llm_client import build_llm_client
 from src.policy import PromptActorCritic
 from src.prompt_space import PromptSpace
-from src.trainer import PromptRLTrainer
+from src.trainer import PromptPPOTrainer
 from src.utils import ensure_dir, print_artifact_summary, save_csv, save_json, set_seed
-
 
 def main():
     cfg = TrainConfig()
@@ -72,11 +72,14 @@ def main():
     model = PromptActorCritic(
         input_dim=input_dim,
         hidden_dim=cfg.policy_hidden_dim,
-        n_actions=len(prompt_space),
+        num_instructions=prompt_space.num_instructions,
+        num_reasoning=prompt_space.num_reasoning,
+        num_formats=prompt_space.num_formats,
+        num_self_checks=prompt_space.num_self_checks,
         dropout=cfg.policy_dropout,
     )
 
-    trainer = PromptRLTrainer(
+    trainer = PromptPPOTrainer(
         model=model,
         prompt_space=prompt_space,
         llm_client=llm_client,
@@ -85,32 +88,17 @@ def main():
     )
 
     print(f"[INFO] device={device}")
-    print(f"[INFO] embedding_device={embedding_device}")
-    print(f"[INFO] train_samples={len(train_ds)} test_samples={len(test_ds)}")
-    print(f"[INFO] action_space={len(prompt_space)}")
+    print(f"[INFO] action_space={prompt_space.num_instructions * prompt_space.num_reasoning * prompt_space.num_formats * prompt_space.num_self_checks}")
     print(f"[INFO] embedding_dim={input_dim}")
 
     history = []
-    best_eval_acc = -1
+    best_eval_acc = -1.0
+    best_eval_reward = -1e9
     best_epoch = -1
 
     for epoch in range(1, cfg.epochs + 1):
         train_metrics = trainer.train_epoch(train_ds, train_embeddings)
         eval_metrics = trainer.evaluate(test_ds, test_embeddings)
-
-        eval_acc = eval_metrics["accuracy"]
-
-        if eval_acc > best_eval_acc:
-            best_eval_acc = eval_acc
-            best_epoch = epoch
-
-            torch.save({
-                "model_state_dict": trainer.model.state_dict(),
-                "epoch": epoch,
-                "eval_acc": eval_acc,
-            }, "best_model.pt")
-
-            print(f"[BEST] epoch={epoch} acc={eval_acc:.4f}")
 
         row = {
             "epoch": epoch,
@@ -122,15 +110,10 @@ def main():
             "train_accuracy": train_metrics["accuracy"],
             "train_avg_prompt_tokens": train_metrics["avg_prompt_tokens"],
             "train_avg_completion_tokens": train_metrics["avg_completion_tokens"],
-            "train_avg_tokens": train_metrics["avg_tokens"],
-            "train_avg_abs_advantage": train_metrics["avg_abs_advantage"],
             "eval_reward": eval_metrics["reward"],
             "eval_accuracy": eval_metrics["accuracy"],
             "eval_avg_prompt_tokens": eval_metrics["avg_prompt_tokens"],
             "eval_avg_completion_tokens": eval_metrics["avg_completion_tokens"],
-            "eval_avg_tokens": eval_metrics["avg_tokens"],
-            "eval_avg_predicted_value": eval_metrics["avg_predicted_value"],
-            "eval_avg_abs_value_error": eval_metrics["avg_abs_value_error"],
             "train_top_action": next(iter(train_metrics["action_hist"].keys()), None),
             "eval_top_action": next(iter(eval_metrics["action_hist"].keys()), None),
         }
@@ -138,27 +121,61 @@ def main():
 
         print(
             f"[EPOCH {epoch}] "
-            f"train_loss={train_metrics['loss']:.4f} "
-            f"policy_loss={train_metrics['policy_loss']:.4f} "
-            f"value_loss={train_metrics['value_loss']:.4f} "
             f"train_acc={train_metrics['accuracy']:.4f} "
-            f"eval_reward={eval_metrics['reward']:.4f} "
             f"eval_acc={eval_metrics['accuracy']:.4f} "
-            f"eval_prompt_tok={eval_metrics['avg_prompt_tokens']:.2f} "
+            f"eval_reward={eval_metrics['reward']:.4f} "
             f"eval_completion_tok={eval_metrics['avg_completion_tokens']:.2f}"
         )
-        print(f"[EPOCH {epoch}] train_top_actions={list(train_metrics['action_hist'].items())[:5]}")
         print(f"[EPOCH {epoch}] eval_top_actions={list(eval_metrics['action_hist'].items())[:5]}")
 
-    model_path = os.path.join(cfg.output_dir, "prompt_policy.pt")
+        is_better = False
+        if eval_metrics["accuracy"] > best_eval_acc:
+            is_better = True
+        elif eval_metrics["accuracy"] == best_eval_acc and eval_metrics["reward"] > best_eval_reward:
+            is_better = True
+
+        if is_better:
+            best_eval_acc = eval_metrics["accuracy"]
+            best_eval_reward = eval_metrics["reward"]
+            best_epoch = epoch
+
+            torch.save(
+                {
+                    "model_state_dict": trainer.model.state_dict(),
+                    "input_dim": input_dim,
+                    "hidden_dim": cfg.policy_hidden_dim,
+                    "dropout": cfg.policy_dropout,
+                    "num_instructions": prompt_space.num_instructions,
+                    "num_reasoning": prompt_space.num_reasoning,
+                    "num_formats": prompt_space.num_formats,
+                    "num_self_checks": prompt_space.num_self_checks,
+                    "model_type": "ppo_actor_critic",
+                    "best_epoch": best_epoch,
+                    "best_eval_acc": best_eval_acc,
+                    "best_eval_reward": best_eval_reward,
+                },
+                os.path.join(cfg.output_dir, "best_model.pt"),
+            )
+
+    save_json(os.path.join(cfg.output_dir, cfg.train_log_json), history)
+    save_csv(os.path.join(cfg.output_dir, cfg.train_log_csv), history)
+
+    print(f"[INFO] best_epoch={best_epoch}")
+    print(f"[INFO] best_eval_acc={best_eval_acc:.4f}")
+    print(f"[INFO] best_eval_reward={best_eval_reward:.4f}")
+
+    model_path = os.path.join(cfg.output_dir, "newest_model.pt")
     torch.save(
         {
             "state_dict": model.state_dict(),
             "input_dim": input_dim,
             "hidden_dim": cfg.policy_hidden_dim,
             "dropout": cfg.policy_dropout,
-            "n_actions": len(prompt_space),
-            "model_type": "actor_critic",
+            "num_instructions": prompt_space.num_instructions,
+            "num_reasoning": prompt_space.num_reasoning,
+            "num_formats": prompt_space.num_formats,
+            "num_self_checks": prompt_space.num_self_checks,
+            "model_type": "ppo_actor_critic",
         },
         model_path,
     )

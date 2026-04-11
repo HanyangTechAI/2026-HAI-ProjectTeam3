@@ -3,12 +3,12 @@ import os
 import torch
 
 from configs import TrainConfig
-from src.baselines import run_rl_policy_baseline
 from src.data import load_gsm8k_subset
 from src.embedder import build_embedding_cache
 from src.llm_client import build_llm_client
 from src.policy import PromptActorCritic
 from src.prompt_space import PromptSpace
+from src.trainer import PromptPPOTrainer
 from src.utils import ensure_dir, print_artifact_summary, save_json
 
 
@@ -25,6 +25,7 @@ def main():
         split=cfg.test_split,
         n_samples=cfg.test_samples,
     )
+    
     test_questions = [sample["question"] for sample in test_ds]
 
     test_embeddings = build_embedding_cache(
@@ -36,6 +37,9 @@ def main():
         batch_size=cfg.embedding_batch_size,
         force_rebuild=False,
     )
+    
+    checkpoint_path = os.path.join(cfg.output_dir, "best_model.pt")
+    checkpoint = torch.load(checkpoint_path, map_location=device)
 
     prompt_space = PromptSpace()
     llm_client = build_llm_client(
@@ -45,30 +49,42 @@ def main():
         max_new_tokens=cfg.max_new_tokens,
     )
 
-    checkpoint = torch.load(os.path.join(cfg.output_dir, "prompt_policy.pt"), map_location=device)
     model = PromptActorCritic(
         input_dim=checkpoint["input_dim"],
         hidden_dim=checkpoint["hidden_dim"],
-        n_actions=checkpoint["n_actions"],
+        num_instructions=checkpoint["num_instructions"],
+        num_reasoning=checkpoint["num_reasoning"],
+        num_formats=checkpoint["num_formats"],
+        num_self_checks=checkpoint["num_self_checks"],
         dropout=checkpoint["dropout"],
     )
-    model.load_state_dict(checkpoint["state_dict"])
+    model.load_state_dict(checkpoint["model_state_dict"])
     model = model.to(device)
-
-    result = run_rl_policy_baseline(
-        dataset=test_ds,
-        embeddings=test_embeddings,
+    
+    trainer = PromptPPOTrainer(
         model=model,
-        prompt_space=prompt_space,
         llm_client=llm_client,
-        cfg=cfg,
+        prompt_space=prompt_space,
+        train_config=cfg,
         device=device,
     )
+    
+    eval_metrics = trainer.evaluate(test_ds, test_embeddings)
+
+    result = {
+        "model_type": checkpoint.get("model_type", "unknown"),
+        "best_epoch": checkpoint.get("best_epoch"),
+        "best_eval_acc_during_training": checkpoint.get("best_eval_acc"),
+        "best_eval_reward_during_training": checkpoint.get("best_eval_reward"),
+        "test_metrics": eval_metrics,
+    }
 
     output_path = os.path.join(cfg.output_dir, cfg.rl_policy_json)
     save_json(output_path, result)
 
+    print("[RESULT] PPO eval")
     print(result)
+    print(f"[INFO] saved -> {output_path}")
     print_artifact_summary(
         "saved artifacts",
         {
@@ -77,7 +93,6 @@ def main():
             "rl_policy_eval": output_path,
         },
     )
-
 
 if __name__ == "__main__":
     main()

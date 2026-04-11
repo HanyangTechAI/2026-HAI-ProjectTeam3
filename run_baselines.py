@@ -1,20 +1,92 @@
 import os
-
 import torch
 
 from configs import TrainConfig
 from src.baselines import (
     run_fixed_action_baseline,
     run_random_baseline,
-    run_rl_policy_baseline,
 )
-from src.data import load_gsm8k_subset
+from src.data import load_gsm8k_subset, extract_gold_answer
 from src.embedder import build_embedding_cache
 from src.llm_client import build_llm_client
 from src.policy import PromptActorCritic
 from src.prompt_space import PromptSpace
+from src.reward import compute_reward, extract_pred_answer, is_correct
 from src.utils import ensure_dir, print_artifact_summary, save_csv, save_json
 
+@torch.no_grad()
+def run_ppo_policy_baseline(
+    dataset,
+    embeddings,
+    model,
+    prompt_space,
+    llm_client,
+    cfg, device = "cpu"
+):
+    model.eval()
+    
+    total_reward = 0.0
+    total_correct = 0
+    total_prompt_tokens = 0
+    total_completion_tokens = 0
+    action_hist={}
+    records = []
+    
+    for idx, sample in enumerate(dataset):
+        question = sample["question"]
+        gold = extract_gold_answer(sample["answer"])
+        
+        x = embeddings[idx].to(device).unsqueeze(0)
+        action, pred_value = model.greedy_action(x)
+        action_idx = int(action.item())
+
+        prompt = prompt_space.render_prompt(action_idx, question)
+        response = llm_client.generate(prompt)
+
+        pred = extract_pred_answer(response.text)
+        correct = is_correct(pred, gold)
+
+        reward = compute_reward(
+            pred=pred,
+            gold=gold,
+            completion_tokens=response.completion_tokens,
+            reward_correct=cfg.reward_correct,
+            reward_wrong=cfg.reward_wrong,
+            completion_token_penalty_coef=cfg.completion_token_penalty_coef,
+        )
+
+        total_reward += reward
+        total_correct += int(correct)
+        total_prompt_tokens += int(response.prompt_tokens)
+        total_completion_tokens += int(response.completion_tokens)
+        action_hist[action_idx] = action_hist.get(action_idx, 0) + 1
+
+        records.append(
+            {
+                "question": question,
+                "gold": gold,
+                "pred": pred,
+                "correct": correct,
+                "reward": reward,
+                "predicted_value": float(pred_value.item()),
+                "prompt_tokens": response.prompt_tokens,
+                "completion_tokens": response.completion_tokens,
+                "total_tokens": response.total_tokens,
+                "action_idx": action_idx,
+                "raw_text": response.text,
+            }
+        )
+        
+    n = len(dataset)
+    return {
+        "name": "ppo_policy",
+        "reward": total_reward / n,
+        "accuracy": total_correct / n,
+        "avg_prompt_tokens": total_prompt_tokens / n,
+        "avg_completion_tokens": total_completion_tokens / n,
+        "action_hist": dict(sorted(action_hist.items(), key=lambda x: x[1], reverse=True)),
+        "records": records,
+    }
 
 def main():
     cfg = TrainConfig()
@@ -67,6 +139,8 @@ def main():
             "name": random_result["name"],
             "reward": random_result["reward"],
             "accuracy": random_result["accuracy"],
+            "avg_prompt_tokens": random_result.get("avg_prompt_tokens"),
+            "avg_completion_tokens": random_result.get("avg_completion_tokens"),
         }
     )
     random_output_path = os.path.join(cfg.output_dir, cfg.random_json)
@@ -105,7 +179,7 @@ def main():
         model.load_state_dict(checkpoint["state_dict"])
         model = model.to(device)
 
-        rl_result = run_rl_policy_baseline(
+        ppo_result = run_ppo_policy_baseline(
             dataset=test_ds,
             embeddings=test_embeddings,
             model=model,
@@ -116,14 +190,16 @@ def main():
         )
         results.append(
             {
-                "name": rl_result["name"],
-                "reward": rl_result["reward"],
-                "accuracy": rl_result["accuracy"],
+                "name": ppo_result["name"],
+                "reward": ppo_result["reward"],
+                "accuracy": ppo_result["accuracy"],
+                "avg_prompt_tokens": ppo_result.get("avg_prompt_tokens"),
+                "avg_completion_tokens": ppo_result.get("avg_completion_tokens"),
             }
         )
-        rl_output_path = os.path.join(cfg.output_dir, cfg.rl_policy_json)
-        save_json(rl_output_path, rl_result)
-        artifact_paths["rl_policy_eval"] = rl_output_path
+        ppo_output_path = os.path.join(cfg.output_dir, cfg.rl_policy_json)
+        save_json(ppo_output_path, ppo_result)
+        artifact_paths["ppo_policy_eval"] = ppo_output_path
 
     leaderboard = sorted(results, key=lambda x: (x["accuracy"], x["reward"]), reverse=True)
 

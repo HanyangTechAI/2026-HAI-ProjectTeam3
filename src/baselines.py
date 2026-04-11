@@ -14,6 +14,8 @@ def run_random_baseline(dataset, prompt_space, llm_client, cfg, seed: int = 42):
 
     total_reward = 0.0
     total_correct = 0
+    total_prompt_tokens = 0
+    total_completion_tokens = 0
     action_hist = {}
     records = []
 
@@ -28,6 +30,8 @@ def run_random_baseline(dataset, prompt_space, llm_client, cfg, seed: int = 42):
         )
         total_reward += record.reward
         total_correct += int(record.correct)
+        total_prompt_tokens += int(record.prompt_tokens)
+        total_completion_tokens += int(record.completion_tokens)
         action_hist[action_idx] = action_hist.get(action_idx, 0) + 1
         records.append(asdict(record))
 
@@ -36,6 +40,8 @@ def run_random_baseline(dataset, prompt_space, llm_client, cfg, seed: int = 42):
         "name": "random",
         "reward": total_reward / n,
         "accuracy": total_correct / n,
+        "avg_prompt_tokens": total_prompt_tokens / n,
+        "avg_completion_tokens": total_completion_tokens / n,
         "action_hist": dict(sorted(action_hist.items(), key=lambda x: x[1], reverse=True)),
         "records": records,
     }
@@ -44,6 +50,8 @@ def run_random_baseline(dataset, prompt_space, llm_client, cfg, seed: int = 42):
 def run_fixed_action_baseline(dataset, fixed_action_idx: int, prompt_space, llm_client, cfg):
     total_reward = 0.0
     total_correct = 0
+    total_prompt_tokens = 0
+    total_completion_tokens = 0
     records = []
 
     for sample in tqdm(dataset, desc=f"fixed_{fixed_action_idx}", leave=False):
@@ -54,6 +62,8 @@ def run_fixed_action_baseline(dataset, fixed_action_idx: int, prompt_space, llm_
             llm_client=llm_client,
             cfg=cfg,
         )
+        total_prompt_tokens += int(record.prompt_tokens)
+        total_completion_tokens += int(record.completion_tokens)
         total_reward += record.reward
         total_correct += int(record.correct)
         records.append(asdict(record))
@@ -64,6 +74,8 @@ def run_fixed_action_baseline(dataset, fixed_action_idx: int, prompt_space, llm_
         "action_idx": fixed_action_idx,
         "reward": total_reward / n,
         "accuracy": total_correct / n,
+        "avg_prompt_tokens": total_prompt_tokens / n,
+        "avg_completion_tokens": total_completion_tokens / n,
         "records": records,
     }
 
@@ -94,11 +106,9 @@ def run_rl_policy_baseline(dataset, embeddings, model, prompt_space, llm_client,
         reward = compute_reward(
             pred=pred,
             gold=gold,
-            prompt_tokens=response.prompt_tokens,
             completion_tokens=response.completion_tokens,
             reward_correct=cfg.reward_correct,
             reward_wrong=cfg.reward_wrong,
-            prompt_token_penalty_coef=cfg.prompt_token_penalty_coef,
             completion_token_penalty_coef=cfg.completion_token_penalty_coef,
         )
 

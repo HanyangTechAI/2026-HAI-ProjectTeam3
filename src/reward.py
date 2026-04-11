@@ -1,6 +1,5 @@
 import re
 
-
 def normalize_number_string(text: str) -> str:
     return text.strip().replace(",", "")
 
@@ -24,16 +23,12 @@ def is_correct(pred: str, gold: str) -> bool:
 def compute_reward(
     pred: str,
     gold: str,
-    prompt_tokens: int,
     completion_tokens: int,
     reward_correct: float,
     reward_wrong: float,
-    prompt_token_penalty_coef: float,
     completion_token_penalty_coef: float,
 ) -> float:
     base_reward = reward_correct if is_correct(pred, gold) else reward_wrong
-
-    prompt_penalty = prompt_token_penalty_coef * float(prompt_tokens)
     completion_penalty = completion_token_penalty_coef * float(completion_tokens)
 
-    return base_reward - prompt_penalty - completion_penalty
+    return base_reward - completion_penalty

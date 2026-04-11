@@ -8,16 +8,16 @@ class TrainConfig:
     train_split: str = "train"
     test_split: str = "test"
 
-    train_samples: int = 30
-    test_samples: int = 20
-    exhaustive_samples: int = 30
+    train_samples: int = 40
+    test_samples: int = 15
+    exhaustive_samples: int = 10
 
     model_name: str = "gpt-4.1-mini"
-    max_new_tokens: int = 32
+    max_new_tokens: int = 64
     temperature: float = 0.2
 
-    lr: float = 5e-4
-    epochs: int = 20
+    lr: float = 1e-4
+    epochs: int = 10
     batch_size: int = 8
 
     reward_correct: float = 1.0
@@ -26,9 +26,13 @@ class TrainConfig:
     prompt_token_penalty_coef: float = 0.0002
     completion_token_penalty_coef: float = 0.0010
 
-    entropy_coef: float = 0.001
+    entropy_coef: float = 0.05
     value_loss_coef: float = 0.5
-    grad_clip_norm: float = 1.0
+    grad_clip_norm: float = 0.5
+    
+    ppo_clip_eps: float = 0.2
+    ppo_update_epochs: int = 4
+    normalize_advantage: bool = True
 
     seed: int = 42
     api_mode: str = "openai"   # "openai" or "mock"

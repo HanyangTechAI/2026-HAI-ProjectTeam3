@@ -19,7 +19,13 @@ class EvalRecord:
     raw_text: str
 
 
-def evaluate_single_action_on_sample(sample: Any, action_idx: int, prompt_space, llm_client, cfg) -> EvalRecord:
+def evaluate_single_action_on_sample(
+    sample: Any,
+    action_idx: int,
+    prompt_space,
+    llm_client,
+    cfg,
+) -> EvalRecord:
     question = sample["question"]
     gold = extract_gold_answer(sample["answer"])
 
@@ -32,11 +38,9 @@ def evaluate_single_action_on_sample(sample: Any, action_idx: int, prompt_space,
     reward = compute_reward(
         pred=pred,
         gold=gold,
-        prompt_tokens=response.prompt_tokens,
         completion_tokens=response.completion_tokens,
         reward_correct=cfg.reward_correct,
         reward_wrong=cfg.reward_wrong,
-        prompt_token_penalty_coef=cfg.prompt_token_penalty_coef,
         completion_token_penalty_coef=cfg.completion_token_penalty_coef,
     )
 
@@ -46,10 +50,9 @@ def evaluate_single_action_on_sample(sample: Any, action_idx: int, prompt_space,
         pred=pred,
         correct=correct,
         reward=reward,
-        prompt_tokens=response.prompt_tokens,
-        completion_tokens=response.completion_tokens,
-        prompt_tokens=response.prompt_tokens,
-        completion_tokens=response.completion_tokens,
+        prompt_tokens=int(response.prompt_tokens),
+        completion_tokens=int(response.completion_tokens),
+        total_tokens=int(response.total_tokens),
         action_idx=action_idx,
         raw_text=response.text,
     )
