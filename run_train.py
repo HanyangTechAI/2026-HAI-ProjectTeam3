@@ -48,7 +48,6 @@ def main():
         batch_size=cfg.embedding_batch_size,
         force_rebuild=False,
     )
-
     test_embeddings = build_embedding_cache(
         questions=test_questions,
         cache_path=test_embedding_path,
@@ -73,9 +72,6 @@ def main():
         input_dim=input_dim,
         hidden_dim=cfg.policy_hidden_dim,
         num_instructions=prompt_space.num_instructions,
-        num_reasoning=prompt_space.num_reasoning,
-        num_formats=prompt_space.num_formats,
-        num_self_checks=prompt_space.num_self_checks,
         dropout=cfg.policy_dropout,
     )
 
@@ -86,10 +82,6 @@ def main():
         train_config=cfg,
         device=device,
     )
-
-    print(f"[INFO] device={device}")
-    print(f"[INFO] action_space={prompt_space.num_instructions * prompt_space.num_reasoning * prompt_space.num_formats * prompt_space.num_self_checks}")
-    print(f"[INFO] embedding_dim={input_dim}")
 
     history = []
     best_eval_acc = -1.0
@@ -146,9 +138,6 @@ def main():
                     "hidden_dim": cfg.policy_hidden_dim,
                     "dropout": cfg.policy_dropout,
                     "num_instructions": prompt_space.num_instructions,
-                    "num_reasoning": prompt_space.num_reasoning,
-                    "num_formats": prompt_space.num_formats,
-                    "num_self_checks": prompt_space.num_self_checks,
                     "model_type": "ppo_actor_critic",
                     "best_epoch": best_epoch,
                     "best_eval_acc": best_eval_acc,
@@ -172,9 +161,6 @@ def main():
             "hidden_dim": cfg.policy_hidden_dim,
             "dropout": cfg.policy_dropout,
             "num_instructions": prompt_space.num_instructions,
-            "num_reasoning": prompt_space.num_reasoning,
-            "num_formats": prompt_space.num_formats,
-            "num_self_checks": prompt_space.num_self_checks,
             "model_type": "ppo_actor_critic",
         },
         model_path,

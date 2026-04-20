@@ -13,9 +13,6 @@ from src.reward import compute_reward, extract_pred_answer, is_correct
 class RolloutItem:
     embedding: torch.Tensor
     inst_action: int
-    reason_action: int
-    format_action: int
-    self_check_action: int
     old_log_prob: float
     reward: float
     correct: bool
@@ -41,14 +38,6 @@ class PromptPPOTrainer:
         self.cfg = train_config
         self.device = device
         self.optimizer = optim.Adam(self.model.parameters(), lr=self.cfg.lr)
-
-    def _action_to_string(self, action):
-        return (
-            f"inst={action.instruction_idx}|"
-            f"reason={action.reasoning_idx}|"
-            f"format={action.format_idx}|"
-            f"self_check={action.self_check_idx}"
-        )
 
     def collect_rollout(self, dataset, embeddings: torch.Tensor):
         self.model.eval()
@@ -76,7 +65,6 @@ class PromptPPOTrainer:
             response = self.llm_client.generate(prompt)
 
             pred = extract_pred_answer(response.text)
-
             reward = compute_reward(
                 pred=pred,
                 gold=gold,
@@ -87,15 +75,12 @@ class PromptPPOTrainer:
             )
             correct = is_correct(pred, gold)
 
-            action_str = self._action_to_string(action)
+            action_str = self.prompt_space.action_to_string(action)
 
             rollout.append(
                 RolloutItem(
                     embedding=embeddings[idx].detach().cpu(),
                     inst_action=action.instruction_idx,
-                    reason_action=action.reasoning_idx,
-                    format_action=action.format_idx,
-                    self_check_action=action.self_check_idx,
                     old_log_prob=log_prob.item(),
                     reward=float(reward),
                     correct=bool(correct),
@@ -127,60 +112,22 @@ class PromptPPOTrainer:
 
     def _prepare_tensors(self, rollout):
         x = torch.stack([item.embedding for item in rollout], dim=0).to(self.device)
-        inst_actions = torch.tensor(
-            [item.inst_action for item in rollout],
-            dtype=torch.long,
-            device=self.device,
-        )
-        reason_actions = torch.tensor(
-            [item.reason_action for item in rollout],
-            dtype=torch.long,
-            device=self.device,
-        )
-        format_actions = torch.tensor(
-            [item.format_action for item in rollout],
-            dtype=torch.long,
-            device=self.device,
-        )
-        self_check_actions = torch.tensor(
-            [item.self_check_action for item in rollout],
-            dtype=torch.long,
-            device=self.device,
-        )
-        old_log_probs = torch.tensor(
-            [item.old_log_prob for item in rollout],
-            dtype=torch.float32,
-            device=self.device,
-        )
-        rewards = torch.tensor(
-            [item.reward for item in rollout],
-            dtype=torch.float32,
-            device=self.device,
-        )
-        old_values = torch.tensor(
-            [item.value for item in rollout],
-            dtype=torch.float32,
-            device=self.device,
-        )
+        inst_actions = torch.tensor([item.inst_action for item in rollout], dtype=torch.long, device=self.device)
+        old_log_probs = torch.tensor([item.old_log_prob for item in rollout], dtype=torch.float32, device=self.device)
+        rewards = torch.tensor([item.reward for item in rollout], dtype=torch.float32, device=self.device)
+        old_values = torch.tensor([item.value for item in rollout], dtype=torch.float32, device=self.device)
 
         advantages = rewards - old_values
         if self.cfg.normalize_advantage:
-            advantages = (advantages - advantages.mean()) / (
-                advantages.std(unbiased=False) + 1e-8
-            )
+            advantages = (advantages - advantages.mean()) / (advantages.std(unbiased=False) + 1e-8)
 
         returns = rewards
-
         return (
             x,
             inst_actions,
-            reason_actions,
-            format_actions,
-            self_check_actions,
             old_log_probs,
             advantages,
             returns,
-            old_values,
         )
 
     def train_epoch(self, dataset, embeddings: torch.Tensor):
@@ -189,13 +136,9 @@ class PromptPPOTrainer:
         (
             x,
             inst_actions,
-            reason_actions,
-            format_actions,
-            self_check_actions,
             old_log_probs,
             advantages,
             returns,
-            old_values,
         ) = self._prepare_tensors(rollout)
 
         self.model.train()
@@ -209,9 +152,6 @@ class PromptPPOTrainer:
             new_log_probs, entropy, values = self.model.evaluate_actions(
                 x,
                 inst_actions,
-                reason_actions,
-                format_actions,
-                self_check_actions,
             )
 
             ratio = torch.exp(new_log_probs - old_log_probs)
@@ -225,11 +165,8 @@ class PromptPPOTrainer:
             surrogate2 = clipped_ratio * advantages
             policy_loss = -torch.min(surrogate1, surrogate2).mean()
 
-            values = values.squeeze(-1)
             value_loss = F.mse_loss(values, returns)
-            
-            entropy = entropy.mean()
-            entropy_loss = -entropy
+            entropy_loss = -entropy.mean()
 
             total_loss = (
                 policy_loss
@@ -248,7 +185,7 @@ class PromptPPOTrainer:
             total_loss_sum += float(total_loss.item())
             total_policy_loss_sum += float(policy_loss.item())
             total_value_loss_sum += float(value_loss.item())
-            total_entropy_sum += float(entropy.item())
+            total_entropy_sum += float(entropy.mean().item())
 
         denom = float(self.cfg.ppo_update_epochs)
 
@@ -310,7 +247,7 @@ class PromptPPOTrainer:
             total_predicted_value += float(value.item())
             total_abs_value_error += abs(float(value.item()) - float(reward))
 
-            action_str = self._action_to_string(action)
+            action_str = self.prompt_space.action_to_string(action)
             action_hist[action_str] = action_hist.get(action_str, 0) + 1
 
         n = len(dataset)

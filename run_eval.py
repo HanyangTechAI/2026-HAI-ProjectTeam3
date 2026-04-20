@@ -53,9 +53,6 @@ def main():
         input_dim=checkpoint["input_dim"],
         hidden_dim=checkpoint["hidden_dim"],
         num_instructions=checkpoint["num_instructions"],
-        num_reasoning=checkpoint["num_reasoning"],
-        num_formats=checkpoint["num_formats"],
-        num_self_checks=checkpoint["num_self_checks"],
         dropout=checkpoint["dropout"],
     )
     model.load_state_dict(checkpoint["model_state_dict"])

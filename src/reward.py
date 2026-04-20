@@ -30,5 +30,4 @@ def compute_reward(
 ) -> float:
     base_reward = reward_correct if is_correct(pred, gold) else reward_wrong
     completion_penalty = completion_token_penalty_coef * float(completion_tokens)
-
     return base_reward - completion_penalty

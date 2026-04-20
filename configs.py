@@ -8,15 +8,15 @@ class TrainConfig:
     train_split: str = "train"
     test_split: str = "test"
 
-    train_samples: int = 40
+    train_samples: int = 60
     test_samples: int = 15
     exhaustive_samples: int = 10
 
     model_name: str = "gpt-4.1-mini"
-    max_new_tokens: int = 64
+    max_new_tokens: int = 32
     temperature: float = 0.2
 
-    lr: float = 1e-4
+    lr: float = 5e-5
     epochs: int = 10
     batch_size: int = 8
 
@@ -24,13 +24,13 @@ class TrainConfig:
     reward_wrong: float = 0.0
 
     prompt_token_penalty_coef: float = 0.0002
-    completion_token_penalty_coef: float = 0.0010
+    completion_token_penalty_coef: float = 0.0002
 
-    entropy_coef: float = 0.05
+    entropy_coef: float = 0.02
     value_loss_coef: float = 0.5
     grad_clip_norm: float = 0.5
     
-    ppo_clip_eps: float = 0.2
+    ppo_clip_eps: float = 0.1
     ppo_update_epochs: int = 4
     normalize_advantage: bool = True
 
