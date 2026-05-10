@@ -3,11 +3,19 @@ from dataclasses import dataclass
 
 @dataclass
 class TrainConfig:
+    # common
+    seed: int = 42
+    output_dir: str = "outputs"
+
+    # dataset
     dataset_name: str = "gsm8k"
     dataset_config: str = "main"
     train_split: str = "train"
     test_split: str = "test"
+    train_samples: int = 50
+    test_samples: int = 30
 
+<<<<<<< Updated upstream
     train_samples: int = 40
     test_samples: int = 15
     exhaustive_samples: int = 10
@@ -52,13 +60,41 @@ class TrainConfig:
     action_hist_png: str = "action_hist.png"
     baseline_bar_png: str = "baseline_accuracy.png"
     exhaustive_action_png: str = "exhaustive_action_scores.png"
+=======
+    # oracle rollout range
+    oracle_split: str = "train"
+    oracle_start_idx: int = 0
+    oracle_num_samples: int = 50
+>>>>>>> Stashed changes
 
+    # embedding / state encoding
     embedding_model_name: str = "sentence-transformers/all-MiniLM-L6-v2"
-    normalize_embeddings: bool = True
-    embedding_batch_size: int = 64
-    train_embedding_cache: str = "train_embeddings.pt"
-    test_embedding_cache: str = "test_embeddings.pt"
-    exhaustive_embedding_cache: str = "exhaustive_embeddings.pt"
 
-    policy_hidden_dim: int = 256
-    policy_dropout: float = 0.1
+    # api / llm
+    # Use "mock" for offline demos and "openai" for real model calls.
+    api_mode: str = "openai"
+
+    # demo
+    demo_embedding_model_name: str = "hashing:384"
+
+    # efficiency pair
+    efficiency_reward_margin: float = 0.01
+    efficiency_min_cost_gap: int = 1
+
+    # balanced combined
+    balanced_efficiency_ratio: float = 0.5
+
+    # RL config
+    rl_train_split: str = "train"
+    rl_train_samples: int = 30
+    rl_eval_split: str = "test"
+    rl_eval_samples: int = 30
+
+    rl_epochs: int = 3
+    rl_lr: float = 1e-5
+    rl_temperature: float = 1.0
+
+    rl_entropy_coef: float = 0.01
+    rl_kl_coef: float = 0.05
+    rl_grad_clip_norm: float = 1.0
+    rl_reward_norm_momentum: float = 0.95

@@ -1,8 +1,8 @@
 from dataclasses import dataclass
 from typing import Any
 
-from src.data import extract_gold_answer
-from src.reward import compute_reward, extract_pred_answer, is_correct
+from data import extract_gold_answer
+from archives.reward import compute_reward, extract_pred_answer, is_correct
 
 
 @dataclass

@@ -1,11 +1,11 @@
 import os
 
-from configs import TrainConfig
-from src.baselines import run_exhaustive_search
-from src.data import load_gsm8k_subset
-from src.llm_client import build_llm_client
-from src.prompt_space import PromptSpace
-from src.utils import ensure_dir, print_artifact_summary, save_json
+from archives.configs import TrainConfig
+from archives.baselines import run_exhaustive_search
+from data import load_gsm8k_subset
+from archives.llm_client import build_llm_client
+from archives.prompt_space import PromptSpace
+from archives.utils import ensure_dir, print_artifact_summary, save_json
 
 
 def main():

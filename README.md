@@ -1,174 +1,105 @@
-# 2026-HAI-ProjectTeam3
+# RL 기반 LLM 추론 정책 최적화
 
-GSM8K 수학 문장제에서 프롬프트 조합을 행동 공간으로 두고, 작은 정책 네트워크가 문제 특성에 따라 프롬프트를 선택하도록 학습하는 실험 코드베이스다. 정책은 강화학습 방식으로 업데이트되며, 응답 정확도와 토큰 사용량을 함께 보상에 반영한다.
+GSM8K 수학 문제를 대상으로 LLM 추론 전략을 동적으로 선택하는 실험 프로젝트입니다.
+정책은 문제 상태를 입력으로 받아 추론 길이, 모델 라우팅, 검증 사용 여부로 구성된 action을 선택합니다.
+선택된 action으로 LLM을 호출한 뒤 정답 정확도와 토큰/모델 비용을 반영한 reward로 정책을 개선합니다.
 
-## 프로젝트 개요
+## 핵심 아이디어
 
-이 프로젝트는 다음 흐름으로 동작한다.
+- State: 문제 길이, 숫자 개수, 비율/금액/다단계 힌트, 문장 embedding
+- Action: `reasoning_budget` x `model_route` x `verify`
+- Reward: 정답 보상 - 토큰 비용 - 모델 라우팅 비용 - 검증/포맷 패널티
+- Policy: action preference model을 초기 정책으로 사용하고, rollout reward로 RL fine-tuning
 
-1. 질문 길이, 숫자 개수, 퍼센트 포함 여부 같은 간단한 feature를 추출한다.
-2. 정책 네트워크가 프롬프트 action 하나를 선택한다.
-3. 선택된 action으로 실제 프롬프트를 구성해 LLM에 질의한다.
-4. 정답 여부와 토큰 수를 바탕으로 reward를 계산한다.
-5. 그 reward로 정책을 업데이트한다.
-
-프롬프트 action은 아래 요소의 조합으로 구성된다.
-
-- instruction 문구
-- reasoning 유도 문구
-- output format 제약
-- self-check 문구
-
-현재 action space는 총 36개다.
-
-## 디렉터리 구조
+현재 action space는 8개입니다.
 
 ```text
-.
-├─ configs.py
-├─ run_train.py
-├─ run_eval.py
-├─ run_baselines.py
-├─ run_exhaustive.py
-├─ run_analysis.py
-├─ src/
-│  ├─ analysis.py
-│  ├─ baselines.py
-│  ├─ data.py
-│  ├─ evaluator.py
-│  ├─ llm_client.py
-│  ├─ policy.py
-│  ├─ prompt_space.py
-│  ├─ reward.py
-│  ├─ trainer.py
-│  └─ utils.py
-└─ outputs/
+0: none  / small / no-verify
+1: none  / small / verify
+2: short / small / no-verify
+3: short / small / verify
+4: short / large / no-verify
+5: short / large / verify
+6: long  / small / no-verify
+7: long  / large / no-verify
 ```
 
-## 요구 사항
+## 빠른 시연
 
-- Python 3.10+
-- PyTorch
-- Hugging Face `datasets`
-- OpenAI Python SDK
+외부 API나 데이터 다운로드 없이 실행되는 mock 데모입니다.
 
-패키지 설치:
-
-```bash
-pip install -r requirements.txt
+```powershell
+python run_demo.py --mode batch
 ```
 
-또는 conda 환경을 사용할 경우:
+단일 문제 시연:
 
-```bash
-conda env create -f environment.yml
-conda activate <env-name>
+```powershell
+python run_demo.py --mode single
 ```
 
-## OpenAI API 설정
+직접 문제를 넣는 경우:
 
-실제 모델을 사용할 경우 `OPENAI_API_KEY`가 필요하다.
+```powershell
+python run_demo.py --mode single --question "A box has 6 rows of pencils with 4 pencils in each row. How many pencils are in the box?" --gold 24
+```
 
-PowerShell:
+결과 JSON 저장:
+
+```powershell
+python run_demo.py --mode batch --save_json outputs/demo_policy_run.json --save_html outputs/demo_report.html
+```
+
+생성된 `outputs/demo_report.html`을 브라우저에서 열면 RL 정책과 고정 action baseline 비교,
+문제별 선택 action, reward, token 사용량을 한 페이지에서 확인할 수 있습니다.
+
+## 실제 OpenAI 호출 평가
+
+`OPENAI_API_KEY`가 필요합니다.
 
 ```powershell
 $env:OPENAI_API_KEY="your_api_key"
+python run_demo.py --mode batch --dataset gsm8k --api_mode openai --embedding_model sentence-transformers/all-MiniLM-L6-v2 --num_samples 10
 ```
 
-mock 모드로 빠르게 구조만 테스트하려면 [configs.py](/c:/Projects/2026-HAI-ProjectTeam3/configs.py)에서 `api_mode="mock"`으로 바꾸면 된다.
+## 주요 파일
 
-## 주요 설정
+- `run_demo.py`: 발표/시연용 진입점
+- `run_rl_training.py`: reward rollout 기반 정책 fine-tuning
+- `run_find_best_checkpoint.py`: checkpoint 성능 비교
+- `run_preference_controller_holdout.py`: preference policy holdout 평가
+- `src/controller/action_space.py`: 추론 action 정의
+- `src/controller/runtime_controller.py`: action 실행 및 reward 계산
+- `src/controller/state_encoder.py`: 문제 상태 feature/embedding 생성
+- `src/preference/preference_model.py`: state-action preference scorer
+- `src/rewards/heuristic_reward.py`: 정확도/비용 기반 reward
+- `src/llm_client.py`: OpenAI client와 offline mock client
 
-기본 실험 설정은 [configs.py](/c:/Projects/2026-HAI-ProjectTeam3/configs.py)에 있다.
+## 설치
 
-- dataset: `gsm8k`, config `main`
-- train samples: `30`
-- test samples: `20`
-- exhaustive samples: `8`
-- model: `gpt-4.1-mini`
-- epochs: `3`
-- reward: 정답 보상 + 토큰 패널티
-
-실험 규모를 키우거나 비용을 줄이려면 `train_samples`, `test_samples`, `epochs`, `model_name`, `api_mode`를 먼저 조정하면 된다.
-
-## 실행 방법
-
-### 1. 학습
-
-```bash
-python run_train.py
+```powershell
+pip install -r requirements.txt
 ```
 
-학습이 끝나면 아래 파일들이 `outputs/`에 저장된다.
+mock 데모만 실행할 때는 이미 설치된 PyTorch만 있으면 동작합니다. GSM8K와 real embedding을 쓰려면
+`datasets`, `sentence-transformers`, `openai`가 필요합니다.
 
-- `prompt_policy.pt`
-- `train_history.json`
-- `train_history.csv`
+## 현재 결과 예시
 
-### 2. 저장된 정책 평가
+`outputs/checkpoint_comparison_all_pt.json` 기준 best checkpoint:
 
-```bash
-python run_eval.py
-```
+- `outputs/action_preference_model_hard_train_0_49.pt`
+- test 30 samples accuracy: `0.60`
+- average reward: `0.526`
 
-저장된 정책 파일 `outputs/prompt_policy.pt`를 불러와 테스트 셋에서 평가하고, 결과를 `outputs/rl_policy.json`에 저장한다.
+`outputs/rl_final_summary.json` 기준 RL fine-tuning 결과:
 
-### 3. exhaustive search
+- test 30 samples accuracy: `0.60`
+- average reward: `0.531`
 
-```bash
-python run_exhaustive.py
-```
+## 개발 방향
 
-테스트 샘플 일부에 대해 모든 action을 전부 평가해서 다음 정보를 저장한다.
-
-- oracle 성능
-- 전역 best action
-- action별 평균 reward / accuracy
-
-결과 파일:
-
-- `outputs/exhaustive.json`
-
-### 4. 분석 플롯 생성
-
-```bash
-python run_analysis.py
-```
-
-가능한 경우 아래 그림 파일들을 `outputs/`에 생성한다.
-
-- `train_curves.png`
-- `action_hist.png`
-- `baseline_accuracy.png`
-- `exhaustive_action_scores.png`
-
-## 코드 구성
-
-- [src/prompt_space.py](/c:/Projects/2026-HAI-ProjectTeam3/src/prompt_space.py): 프롬프트 action 정의 및 렌더링
-- [src/policy.py](/c:/Projects/2026-HAI-ProjectTeam3/src/policy.py): 프롬프트 선택 정책 네트워크
-- [src/trainer.py](/c:/Projects/2026-HAI-ProjectTeam3/src/trainer.py): REINFORCE 기반 학습 및 평가 루프
-- [src/reward.py](/c:/Projects/2026-HAI-ProjectTeam3/src/reward.py): 정답 추출, 정오 판정, reward 계산
-- [src/llm_client.py](/c:/Projects/2026-HAI-ProjectTeam3/src/llm_client.py): OpenAI / mock LLM 클라이언트
-- [src/baselines.py](/c:/Projects/2026-HAI-ProjectTeam3/src/baselines.py): random, fixed-action, RL policy, exhaustive 유틸리티
-- [src/analysis.py](/c:/Projects/2026-HAI-ProjectTeam3/src/analysis.py): 결과 시각화
-
-## 출력물 설명
-
-- `train_history.json`, `train_history.csv`: epoch별 학습/평가 로그
-- `prompt_policy.pt`: 학습된 정책 가중치
-- `rl_policy.json`: 저장된 RL 정책 평가 결과
-- `exhaustive.json`: exhaustive 탐색 결과
-- `*.png`: 분석용 시각화 결과
-
-## 현재 상태 메모
-
-- [run_train.py](/c:/Projects/2026-HAI-ProjectTeam3/run_train.py)는 현재 정상적인 학습 엔트리포인트다.
-- [run_eval.py](/c:/Projects/2026-HAI-ProjectTeam3/run_eval.py)는 저장된 RL 정책 평가 스크립트로 사용된다.
-- [run_baselines.py](/c:/Projects/2026-HAI-ProjectTeam3/run_baselines.py)는 현재 이름과 달리 RL 정책 평가 중심으로 구성되어 있다. `src/baselines.py`에는 random / fixed-action baseline 함수가 이미 있으므로, 필요하면 이 엔트리포인트를 확장해 leaderboard 생성 흐름으로 정리할 수 있다.
-
-## 주의 사항
-
-- `datasets`가 처음 실행될 때 GSM8K 다운로드가 필요하다.
-- OpenAI API를 사용할 경우 호출 비용이 발생한다.
-- 답안 추출은 `FINAL: <number>` 형식을 우선 사용하므로, 프롬프트 포맷 제약이 성능에 직접 영향을 준다.
-- 현재 feature는 매우 단순하므로 정책 성능은 샘플 수와 프롬프트 설계에 민감하다.
+1. mock 데모로 action 선택과 reward 구조를 안정적으로 보여준다.
+2. OpenAI/GSM8K 실험으로 실제 추론 정책 성능을 측정한다.
+3. reward 설계를 고도화해 비용 대비 정확도 trade-off를 더 명확히 만든다.
+4. checkpoint 비교와 batch eval 결과를 발표용 표/그래프로 정리한다.

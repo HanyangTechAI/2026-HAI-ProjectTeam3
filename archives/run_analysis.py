@@ -1,8 +1,8 @@
 import os
 
-from configs import TrainConfig
-from src.analysis import generate_all_analysis_plots
-from src.utils import ensure_dir, print_artifact_summary
+from archives.configs import TrainConfig
+from archives.analysis import generate_all_analysis_plots
+from archives.utils import ensure_dir, print_artifact_summary
 
 
 def main():

@@ -1,18 +1,18 @@
 import os
 import torch
 
-from configs import TrainConfig
-from src.baselines import (
+from archives.configs import TrainConfig
+from archives.baselines import (
     run_fixed_action_baseline,
     run_random_baseline,
 )
-from src.data import load_gsm8k_subset, extract_gold_answer
-from src.embedder import build_embedding_cache
-from src.llm_client import build_llm_client
-from src.policy import PromptActorCritic
-from src.prompt_space import PromptSpace
-from src.reward import compute_reward, extract_pred_answer, is_correct
-from src.utils import ensure_dir, print_artifact_summary, save_csv, save_json
+from data import load_gsm8k_subset, extract_gold_answer
+from archives.embedder import build_embedding_cache
+from archives.llm_client import build_llm_client
+from archives.policy import PromptActorCritic
+from archives.prompt_space import PromptSpace
+from archives.reward import compute_reward, extract_pred_answer, is_correct
+from archives.utils import ensure_dir, print_artifact_summary, save_csv, save_json
 
 @torch.no_grad()
 def run_ppo_policy_baseline(

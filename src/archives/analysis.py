@@ -3,7 +3,7 @@ import os
 import matplotlib.pyplot as plt
 import pandas as pd
 
-from src.utils import load_json
+from archives.utils import load_json
 
 
 def plot_train_curves(train_history_path: str, output_path: str) -> None:
