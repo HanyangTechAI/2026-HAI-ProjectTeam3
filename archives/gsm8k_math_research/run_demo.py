@@ -15,6 +15,7 @@ from src.demo_samples import load_demo_dataset
 from src.llm_client import build_llm_client
 from src.policy_utils import (
     compute_action_scores,
+    compute_heuristic_action_scores,
     estimate_difficulty,
     load_preference_model,
     resolve_policy_checkpoint,
@@ -58,13 +59,20 @@ def run_one(question: str, gold: str, model, controller, action_space, cfg, args
     difficulty = estimate_difficulty(state_features)
 
     with torch.no_grad():
-        scores = compute_action_scores(
-            model=model,
-            state_features=state_features,
-            state_embedding=state_embedding,
-            action_space=action_space,
-            device=device,
-        )
+        if model is None:
+            scores = compute_heuristic_action_scores(
+                state_features=state_features,
+                action_space=action_space,
+                device=device,
+            )
+        else:
+            scores = compute_action_scores(
+                model=model,
+                state_features=state_features,
+                state_embedding=state_embedding,
+                action_space=action_space,
+                device=device,
+            )
 
     sorted_indices = torch.argsort(scores, descending=True).tolist()
     chosen_action_idx = int(sorted_indices[0])
@@ -191,6 +199,12 @@ def main():
     parser.add_argument("--api_mode", choices=["mock", "openai"], default="mock")
     parser.add_argument("--embedding_model", type=str, default="hashing:384")
     parser.add_argument("--checkpoint", type=str, default="")
+    parser.add_argument(
+        "--policy_source",
+        choices=["auto", "checkpoint", "heuristic"],
+        default="auto",
+    )
+    parser.add_argument("--force_heuristic", action="store_true", help=argparse.SUPPRESS)
     parser.add_argument("--save_json", type=str, default="")
     parser.add_argument("--save_html", type=str, default="")
     parser.add_argument("--no_baselines", action="store_true")
@@ -200,8 +214,24 @@ def main():
     set_seed(cfg.seed)
 
     device = "cuda" if torch.cuda.is_available() else "cpu"
-    model_path = resolve_policy_checkpoint(cfg.output_dir, args.checkpoint or None)
-    model, _ = load_preference_model(model_path, device=device)
+    policy_source = args.policy_source
+    if args.force_heuristic:
+        policy_source = "heuristic"
+    if policy_source == "auto" and args.api_mode == "mock" and args.dataset == "demo" and not args.checkpoint:
+        policy_source = "heuristic"
+
+    if policy_source == "heuristic":
+        model_path = "heuristic_fallback_policy"
+        model = None
+    else:
+        try:
+            model_path = resolve_policy_checkpoint(cfg.output_dir, args.checkpoint or None)
+            model, _ = load_preference_model(model_path, device=device)
+        except FileNotFoundError:
+            if args.checkpoint or policy_source == "checkpoint":
+                raise
+            model_path = "heuristic_fallback_policy"
+            model = None
 
     action_space = InferenceActionSpace()
     llm_client = build_llm_client(args.api_mode)
@@ -268,7 +298,7 @@ def main():
             ]
             baseline_summaries.append(
                 summarize_rollouts(
-                    name="rl_policy",
+                    name="checkpoint_policy" if model is not None else "heuristic_dynamic_policy",
                     action_label="dynamic action selection",
                     rows=policy_rows,
                 )

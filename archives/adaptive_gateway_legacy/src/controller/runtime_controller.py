@@ -30,7 +30,13 @@ class AdaptiveInferenceController:
         self.llm_client = llm_client
         self.action_space = action_space or InferenceActionSpace()
 
-    def execute(self, question: str, gold_answer: str, action_idx: int) -> ControllerExecutionResult:
+    def execute(
+        self,
+        question: str,
+        gold_answer: str,
+        action_idx: int,
+        task_type: str = "math",
+    ) -> ControllerExecutionResult:
         action = self.action_space.get_action(action_idx)
         action_desc = self.action_space.describe_action(action_idx)
 
@@ -38,6 +44,7 @@ class AdaptiveInferenceController:
         prompt = build_prompt(
             question=question,
             reasoning_budget=action.reasoning_budget,
+            task_type=task_type,
         )
 
         response = self.llm_client.generate(
@@ -50,15 +57,19 @@ class AdaptiveInferenceController:
         completion_tokens = int(response.get("completion_tokens", 0))
         total_tokens = int(response.get("total_tokens", prompt_tokens + completion_tokens))
 
-        if action.verify:
+        if task_type == "math" and action.verify:
             verification = verify_and_repair_output(raw_text)
             final_text = verification.repaired_text
             extracted_answer = verification.extracted_answer
             format_ok = verification.format_ok
-        else:
+        elif task_type == "math":
             final_text = raw_text
             extracted_answer = extract_final_answer(raw_text)
             format_ok = bool(extracted_answer)
+        else:
+            final_text = raw_text.strip()
+            extracted_answer = final_text
+            format_ok = bool(final_text)
 
         reward = compute_heuristic_reward(
             pred=extracted_answer,

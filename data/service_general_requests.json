@@ -1,0 +1,34 @@
+[
+  {
+    "task_type": "writing",
+    "request": "다음 공지 문장을 더 정중하고 간결하게 고쳐줘: 내일까지 보고서 보내주세요."
+  },
+  {
+    "task_type": "summarization",
+    "request": "Summarize this in one sentence: The product launch was delayed because the payment integration failed QA, but the team expects to ship after the retry tests pass tomorrow."
+  },
+  {
+    "task_type": "classification",
+    "request": "Classify this customer message as bug, billing, feature request, or general: I was charged twice for my subscription this month."
+  },
+  {
+    "task_type": "general",
+    "request": "API 응답 시간이 갑자기 느려졌을 때 먼저 확인해야 할 항목을 짧게 알려줘."
+  },
+  {
+    "task_type": "writing",
+    "request": "Write a concise follow-up email asking whether the contract review is complete."
+  },
+  {
+    "task_type": "summarization",
+    "request": "요약해줘: 회의에서는 신규 온보딩 플로우, 관리자 권한 분리, 5월 말 베타 테스트 일정이 논의되었다."
+  },
+  {
+    "task_type": "classification",
+    "request": "분류해줘: 사용자가 비밀번호 재설정 메일을 받지 못한다고 문의했다."
+  },
+  {
+    "task_type": "general",
+    "request": "작은 팀에서 AI 기능을 출시하기 전에 필요한 최소 모니터링 지표를 알려줘."
+  }
+]

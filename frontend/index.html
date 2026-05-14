@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>AI API Cost Optimizer</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <header>
+    <h1>AI API Cost Optimizer</h1>
+    <p>요청을 분석해 OpenAI/Gemini/local 중 비용 효율적인 추론 전략을 선택합니다.</p>
+  </header>
+  <main>
+    <section class="workspace">
+      <div class="panel input-panel">
+        <label for="prompt">Prompt</label>
+        <textarea id="prompt">API 응답 시간이 갑자기 느려졌을 때 먼저 확인해야 할 항목을 짧게 알려줘.</textarea>
+        <div class="row">
+          <label>
+            Max completion tokens
+            <input id="maxTokens" type="number" min="32" max="8192" value="512">
+          </label>
+          <label class="check">
+            <input id="forceMock" type="checkbox">
+            Force mock
+          </label>
+        </div>
+        <button id="runBtn">Optimize & Run</button>
+      </div>
+      <div class="panel">
+        <h2>Selected Strategy</h2>
+        <div id="strategy" class="cards"></div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>Response</h2>
+      <pre id="output">Ready.</pre>
+    </section>
+
+    <section class="panel">
+      <h2>Usage Statistics</h2>
+      <div id="stats" class="cards"></div>
+    </section>
+  </main>
+  <script src="/app.js"></script>
+</body>
+</html>

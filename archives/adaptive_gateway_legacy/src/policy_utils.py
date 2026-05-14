@@ -47,6 +47,89 @@ def compute_action_scores(
     return torch.stack(scores, dim=0)
 
 
+def compute_heuristic_action_scores(
+    state_features: dict,
+    action_space: InferenceActionSpace,
+    device: str,
+) -> torch.Tensor:
+    scores = torch.full((len(action_space),), -4.0, dtype=torch.float32, device=device)
+
+    has_complex_hint = (
+        state_features["has_ratio_words"] > 0.0
+        or state_features["has_multistep_hint"] > 0.0
+    )
+    has_cost_hint = (
+        state_features["has_money"] > 0.0
+        or state_features["has_percent"] > 0.0
+    )
+
+    if has_complex_hint and not has_cost_hint:
+        preferred = 7
+    elif has_cost_hint and not has_complex_hint:
+        preferred = 0
+    elif has_complex_hint and has_cost_hint:
+        preferred = 4
+    else:
+        preferred = 0
+
+    for action_idx in range(len(action_space)):
+        action = action_space.get_action(action_idx)
+        score = -1.0
+        if action_idx == preferred:
+            score = 3.0
+        if action.model_route == "large":
+            score -= 0.2
+        if action.verify:
+            score -= 0.3
+        if action.reasoning_budget == "long":
+            score -= 0.1
+        scores[action_idx] = score
+
+    return scores
+
+
+def compute_task_aware_heuristic_action_scores(
+    state_features: dict,
+    action_space: InferenceActionSpace,
+    device: str,
+    task_type: str,
+    text: str,
+) -> torch.Tensor:
+    if task_type == "math":
+        return compute_heuristic_action_scores(
+            state_features=state_features,
+            action_space=action_space,
+            device=device,
+        )
+
+    scores = torch.full((len(action_space),), -4.0, dtype=torch.float32, device=device)
+    word_count = len(text.split())
+
+    if task_type in {"writing", "summarization", "classification"}:
+        preferred = 2
+    else:
+        preferred = 0
+    if word_count > 80:
+        preferred = 4
+
+    for action_idx in range(len(action_space)):
+        action = action_space.get_action(action_idx)
+        score = -1.0
+        if action_idx == preferred:
+            score = 3.0
+        if action.model_route == "large":
+            score -= 0.4
+        if action.verify:
+            score -= 0.5
+        if action.reasoning_budget == "long":
+            score -= 0.2
+        if task_type in {"writing", "summarization"} and action.reasoning_budget == "short":
+            score += 0.3
+        scores[action_idx] = score
+
+    return scores
+
+
 def estimate_difficulty(state_features: Dict[str, float]) -> Dict[str, float]:
     score = 0.0
     score += 0.20 * state_features["normalized_length"]

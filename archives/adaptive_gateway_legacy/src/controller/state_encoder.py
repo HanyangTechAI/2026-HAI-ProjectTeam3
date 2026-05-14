@@ -14,6 +14,7 @@ except ImportError:  # pragma: no cover - exercised only in minimal demo envs
 RATIO_WORDS = [
     "half",
     "twice",
+    "third",
     "triple",
     "triple",
     "double",
@@ -39,6 +40,12 @@ MULTISTEP_HINT_WORDS = [
     "yesterday",
     "today",
     "tomorrow",
+    "buy",
+    "buys",
+    "bought",
+    "give",
+    "gives",
+    "gave",
 ]
 
 
@@ -84,12 +91,17 @@ def contains_money(text: str) -> bool:
 
 def contains_ratio_words(text: str) -> bool:
     lowered = text.lower()
-    return any(word in lowered for word in RATIO_WORDS)
+    return any(contains_keyword(lowered, word) for word in RATIO_WORDS)
 
 
 def contains_multistep_hint(text: str) -> bool:
     lowered = text.lower()
-    return any(word in lowered for word in MULTISTEP_HINT_WORDS)
+    return any(contains_keyword(lowered, word) for word in MULTISTEP_HINT_WORDS)
+
+
+def contains_keyword(lowered_text: str, keyword: str) -> bool:
+    pattern = r"\b" + re.escape(keyword.lower()) + r"\b"
+    return re.search(pattern, lowered_text) is not None
 
 
 def normalize_length(x: int, max_len: int = 200) -> float:

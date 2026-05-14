@@ -1,0 +1,36 @@
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: optimizer
+      POSTGRES_PASSWORD: optimizer
+      POSTGRES_DB: optimizer
+    ports:
+      - "5432:5432"
+    volumes:
+      - optimizer_db:/var/lib/postgresql/data
+
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    environment:
+      DATABASE_URL: postgresql://optimizer:optimizer@db:5432/optimizer
+      OPENAI_API_KEY: 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
+      GEMINI_API_KEY: AIzaSyDN77Ne3Nn6vn_FavHGMnlqLHNKNDYBiLw
+    depends_on:
+      - db
+    ports:
+      - "8000:8000"
+
+  frontend:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+    depends_on:
+      - backend
+    ports:
+      - "3000:80"
+
+volumes:
+  optimizer_db:

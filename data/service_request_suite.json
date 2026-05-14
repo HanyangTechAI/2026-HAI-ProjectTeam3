@@ -1,0 +1,152 @@
+[
+  {
+    "task_type": "math",
+    "request": "A jacket costs 80 dollars and is discounted by 25 percent. What is the sale price?",
+    "gold": "60",
+    "good_criteria": "Final numeric answer is 60 and no unnecessary explanation is required."
+  },
+  {
+    "task_type": "math",
+    "request": "Sara has 12 stickers. She buys 8 more and gives 5 to her friend. How many stickers does Sara have left?",
+    "gold": "15",
+    "good_criteria": "Final numeric answer is 15."
+  },
+  {
+    "task_type": "math",
+    "request": "A recipe uses 3 cups of flour for every 2 cups of sugar. If you use 9 cups of flour, how many cups of sugar do you need?",
+    "gold": "6",
+    "good_criteria": "Final numeric answer is 6."
+  },
+  {
+    "task_type": "math",
+    "request": "Four boxes each contain 6 oranges. The teacher gives away 7 oranges. How many oranges are left?",
+    "gold": "17",
+    "good_criteria": "Final numeric answer is 17."
+  },
+  {
+    "task_type": "math",
+    "request": "A phone costs 300 dollars. The price increases by 10 percent. What is the new price?",
+    "gold": "330",
+    "good_criteria": "Final numeric answer is 330."
+  },
+  {
+    "task_type": "summarization",
+    "request": "Summarize in one sentence: The deployment was paused after monitoring showed elevated error rates in the payment service, and the team will retry after the rollback verification is complete.",
+    "gold": "",
+    "good_criteria": "Captures deployment pause, payment errors, and retry after rollback verification in one sentence."
+  },
+  {
+    "task_type": "summarization",
+    "request": "요약해줘: 이번 회의에서는 고객 피드백 수집 방식, 관리자 대시보드 개편, 다음 주 베타 테스트 일정이 논의되었다.",
+    "gold": "",
+    "good_criteria": "고객 피드백, 대시보드 개편, 베타 테스트 일정을 모두 포함해 짧게 요약한다."
+  },
+  {
+    "task_type": "summarization",
+    "request": "Summarize this customer note in two bullet points: The user likes the new search filter but says saved filters are hard to find. They also want export support for filtered results.",
+    "gold": "",
+    "good_criteria": "Mentions positive feedback on search filters and two issues: saved filters discoverability and export support."
+  },
+  {
+    "task_type": "summarization",
+    "request": "다음 내용을 한 문장으로 줄여줘: 결제 실패 알림이 너무 늦게 전송되어 고객 지원팀이 문제를 먼저 발견하지 못했고, 알림 기준을 더 빠르게 조정하기로 했다.",
+    "gold": "",
+    "good_criteria": "결제 실패 알림 지연과 알림 기준 조정 결정을 모두 담는다."
+  },
+  {
+    "task_type": "summarization",
+    "request": "Summarize for an executive: Active users increased, support tickets decreased, but infrastructure cost rose because batch jobs ran more often.",
+    "gold": "",
+    "good_criteria": "States the mixed business result: users up, tickets down, infrastructure cost up."
+  },
+  {
+    "task_type": "writing",
+    "request": "다음 문장을 정중한 업무 메시지로 고쳐줘: 자료 빨리 보내주세요.",
+    "gold": "",
+    "good_criteria": "Polite, concise, and suitable for workplace chat or email."
+  },
+  {
+    "task_type": "writing",
+    "request": "Write a concise follow-up email asking whether the contract review is complete.",
+    "gold": "",
+    "good_criteria": "Has a clear subject-like opening, polite ask, and concise tone."
+  },
+  {
+    "task_type": "writing",
+    "request": "Rewrite this to sound more professional: We messed up the deploy and need to fix it fast.",
+    "gold": "",
+    "good_criteria": "Professional tone without hiding the deployment issue or urgency."
+  },
+  {
+    "task_type": "writing",
+    "request": "제품 업데이트 공지 제목 3개를 짧게 제안해줘. 주제는 '새 대시보드 출시'야.",
+    "gold": "",
+    "good_criteria": "Provides exactly three short Korean title options about the new dashboard."
+  },
+  {
+    "task_type": "writing",
+    "request": "Draft a short Slack message telling the team that today's standup is moved to 3 PM.",
+    "gold": "",
+    "good_criteria": "Short, clear, and includes standup moved to 3 PM today."
+  },
+  {
+    "task_type": "classification",
+    "request": "Classify this customer message as bug, billing, feature request, or general: I was charged twice for my subscription this month.",
+    "gold": "billing",
+    "good_criteria": "Label is billing, with a brief rationale if included."
+  },
+  {
+    "task_type": "classification",
+    "request": "분류해줘: 로그인 버튼을 눌러도 아무 반응이 없어요.",
+    "gold": "bug",
+    "good_criteria": "Label is bug because a feature is not responding."
+  },
+  {
+    "task_type": "classification",
+    "request": "Classify sentiment as positive, neutral, or negative: The new dashboard is useful, but it loads too slowly.",
+    "gold": "neutral",
+    "good_criteria": "Label is neutral or mixed, acknowledging both positive and negative points."
+  },
+  {
+    "task_type": "classification",
+    "request": "이 요청을 urgent, normal, low 중 하나로 분류해줘: 결제 시스템 장애로 모든 사용자가 결제를 완료하지 못하고 있어.",
+    "gold": "urgent",
+    "good_criteria": "Label is urgent because payment is down for all users."
+  },
+  {
+    "task_type": "classification",
+    "request": "Classify this as sales, support, or product: Can you add CSV export to the analytics page?",
+    "gold": "product",
+    "good_criteria": "Label is product because it asks for a feature."
+  },
+  {
+    "task_type": "general",
+    "request": "API 응답 시간이 갑자기 느려졌을 때 먼저 확인해야 할 항목을 짧게 알려줘.",
+    "gold": "",
+    "good_criteria": "Lists practical first checks such as latency, error rate, DB, external API, recent deploys, and traffic."
+  },
+  {
+    "task_type": "general",
+    "request": "작은 팀에서 AI 기능을 출시하기 전에 필요한 최소 모니터링 지표를 알려줘.",
+    "gold": "",
+    "good_criteria": "Mentions request volume, latency, error rate, cost/tokens, user feedback, and safety failures."
+  },
+  {
+    "task_type": "general",
+    "request": "새로운 SaaS 기능의 베타 테스트를 시작하기 전에 체크리스트를 만들어줘.",
+    "gold": "",
+    "good_criteria": "Gives a concise, actionable beta checklist."
+  },
+  {
+    "task_type": "general",
+    "request": "LLM 서비스를 운영할 때 비용 폭증을 막기 위한 방법을 알려줘.",
+    "gold": "",
+    "good_criteria": "Mentions routing, token limits, caching, monitoring, rate limits, and alerts."
+  },
+  {
+    "task_type": "general",
+    "request": "고객 피드백을 제품 개선 과제로 바꾸는 간단한 절차를 설명해줘.",
+    "gold": "",
+    "good_criteria": "Explains collecting, grouping, prioritizing, converting to tasks, and validating outcomes."
+  }
+]

@@ -1,0 +1,122 @@
+[
+  {
+    "category": "easy_arithmetic",
+    "question": "Lina has 7 apples and buys 6 more apples. How many apples does she have now?",
+    "gold": "13",
+    "note": "single-step addition"
+  },
+  {
+    "category": "easy_arithmetic",
+    "question": "There are 15 books on a shelf. Tom removes 4 books. How many books remain?",
+    "gold": "11",
+    "note": "single-step subtraction"
+  },
+  {
+    "category": "easy_arithmetic",
+    "question": "A pack has 8 pencils. Mia buys 3 packs. How many pencils does she buy?",
+    "gold": "24",
+    "note": "single-step multiplication"
+  },
+  {
+    "category": "easy_arithmetic",
+    "question": "A baker makes 20 cookies and puts them equally into 5 bags. How many cookies are in each bag?",
+    "gold": "4",
+    "note": "single-step division"
+  },
+  {
+    "category": "easy_arithmetic",
+    "question": "Noah had 18 marbles and lost 9 of them. How many marbles does Noah have left?",
+    "gold": "9",
+    "note": "simple subtraction"
+  },
+  {
+    "category": "multi_step",
+    "question": "Sara has 12 stickers. She buys 8 more and gives 5 to her friend. How many stickers does Sara have left?",
+    "gold": "15",
+    "note": "addition then subtraction"
+  },
+  {
+    "category": "multi_step",
+    "question": "A class has 24 students. Half of them bring lunch, and 3 more students buy lunch later. How many students have lunch?",
+    "gold": "15",
+    "note": "fraction then addition"
+  },
+  {
+    "category": "multi_step",
+    "question": "Ben reads 10 pages on Monday, twice as many pages on Tuesday, and 5 pages on Wednesday. How many pages does he read in total?",
+    "gold": "35",
+    "note": "multiplication and addition"
+  },
+  {
+    "category": "multi_step",
+    "question": "A store has 40 notebooks. It sells 12 in the morning and 9 in the afternoon. Then it receives 15 new notebooks. How many notebooks are in the store now?",
+    "gold": "34",
+    "note": "two subtractions and addition"
+  },
+  {
+    "category": "multi_step",
+    "question": "Four boxes each contain 6 oranges. The teacher gives away 7 oranges. How many oranges are left?",
+    "gold": "17",
+    "note": "multiplication then subtraction"
+  },
+  {
+    "category": "ratio_percent_discount",
+    "question": "A jacket costs $80 and is discounted by 25 percent. What is the sale price?",
+    "gold": "60",
+    "note": "percentage discount"
+  },
+  {
+    "category": "ratio_percent_discount",
+    "question": "There are 45 students. One third of them join the math club. How many students join the math club?",
+    "gold": "15",
+    "note": "one-third ratio"
+  },
+  {
+    "category": "ratio_percent_discount",
+    "question": "A recipe uses 3 cups of flour for every 2 cups of sugar. If you use 9 cups of flour, how many cups of sugar do you need?",
+    "gold": "6",
+    "note": "proportional ratio"
+  },
+  {
+    "category": "ratio_percent_discount",
+    "question": "A phone costs $300. The price increases by 10 percent. What is the new price?",
+    "gold": "330",
+    "note": "percentage increase"
+  },
+  {
+    "category": "ratio_percent_discount",
+    "question": "A shirt originally costs $50. It is discounted by 20 percent, and then a $5 coupon is applied. What is the final price?",
+    "gold": "35",
+    "note": "discount plus coupon"
+  },
+  {
+    "category": "ambiguous_tricky",
+    "question": "A bus has 20 people on it. At the first stop, 5 people get off and 3 people get on. At the second stop, twice as many people get on as got off at the first stop. How many people are on the bus now?",
+    "gold": "28",
+    "note": "requires tracking reference quantity"
+  },
+  {
+    "category": "ambiguous_tricky",
+    "question": "Emma says she has 6 more cards than Liam. Liam has 14 cards. After Emma gives Liam 4 cards, how many cards does Emma have?",
+    "gold": "16",
+    "note": "relation then transfer"
+  },
+  {
+    "category": "ambiguous_tricky",
+    "question": "A box contains red and blue balls. There are 12 red balls, and the number of blue balls is half the number of red balls. If 3 blue balls are removed, how many blue balls remain?",
+    "gold": "3",
+    "note": "focus on blue balls only"
+  },
+  {
+    "category": "ambiguous_tricky",
+    "question": "A restaurant table seats 4 people. Seven full tables are occupied, and one more table has 2 people. How many people are seated?",
+    "gold": "30",
+    "note": "full tables plus partial table"
+  },
+  {
+    "category": "ambiguous_tricky",
+    "question": "A farmer had 30 eggs. Some eggs broke, leaving 22 eggs. Then the farmer collected 9 more eggs. How many eggs does the farmer have now?",
+    "gold": "31",
+    "note": "ignore unknown broken count after remaining amount is given"
+  }
+]
