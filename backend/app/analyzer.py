@@ -26,7 +26,7 @@ def analyze_prompt(prompt: str) -> PromptAnalysis:
     if prompt_tokens > 1000:
         complexity += 0.25
         signals.append("very_long_prompt")
-    if task_type in {TaskType.MATH, TaskType.CODING}:
+    if task_type in {TaskType.MATH, TaskType.CODING, TaskType.STOCK}:
         complexity += 0.25
         signals.append(f"{task_type.value}_task")
     if any(marker in lowered for marker in ["step by step", "prove", "debug", "optimize", "compare", "trade-off", "tradeoff"]):
@@ -50,7 +50,7 @@ def analyze_prompt(prompt: str) -> PromptAnalysis:
         complexity_level = "high"
         reasoning_need = ReasoningDepth.LONG
 
-    if task_type in {TaskType.MATH, TaskType.CODING} and reasoning_need == ReasoningDepth.NONE:
+    if task_type in {TaskType.MATH, TaskType.CODING, TaskType.STOCK} and reasoning_need == ReasoningDepth.NONE:
         reasoning_need = ReasoningDepth.SHORT
 
     return PromptAnalysis(
@@ -69,6 +69,8 @@ def analyze_prompt(prompt: str) -> PromptAnalysis:
 
 
 def detect_task_type(text: str) -> TaskType:
+    if contains_any(text, ["stock", "stocks", "share price", "ticker", "portfolio", "dividend", "earnings", "valuation", "market cap", "buy or sell", "investment", "investing", "etf"]):
+        return TaskType.STOCK
     if contains_any(text, ["classify", "classification", "label", "category", "sentiment", "분류", "라벨"]):
         return TaskType.CLASSIFICATION
     if contains_any(text, ["python", "javascript", "typescript", "sql", "code", "bug", "debug", "function", "api error"]):
@@ -89,7 +91,7 @@ def detect_domain(text: str) -> Domain:
         return Domain.LEGAL
     if contains_any(text, ["doctor", "medical", "symptom", "medicine", "diagnosis", "health"]):
         return Domain.MEDICAL
-    if contains_any(text, ["invoice", "payment", "subscription", "revenue", "cost", "finance", "billing", "charged"]):
+    if contains_any(text, ["invoice", "payment", "subscription", "revenue", "cost", "finance", "billing", "charged", "stock", "ticker", "portfolio", "dividend", "earnings", "investment", "etf"]):
         return Domain.FINANCE
     if contains_any(text, ["lesson", "student", "exam", "homework", "education"]):
         return Domain.EDUCATION
@@ -102,7 +104,7 @@ def detect_risk(text: str, domain: Domain) -> tuple[float, RiskLevel]:
     score = 0.0
     if domain in {Domain.LEGAL, Domain.MEDICAL, Domain.FINANCE}:
         score += 0.45
-    if contains_any(text, ["personal data", "password", "secret", "api key", "refund", "lawsuit", "diagnosis"]):
+    if contains_any(text, ["personal data", "password", "secret", "api key", "refund", "lawsuit", "diagnosis", "buy or sell", "investment advice"]):
         score += 0.35
     if contains_any(text, ["must", "guarantee", "critical", "production", "security", "compliance"]):
         score += 0.2

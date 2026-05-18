@@ -112,6 +112,79 @@ The server automatically uses `outputs/routing_policy.json` if it exists. If the
 
 Current initial training uses the rule-based policy as a teacher. The next research step is to replace teacher labels with service logs, user feedback, observed cost, latency, and quality scores.
 
+## RL Routing Policy
+
+The first RL direction is an offline contextual bandit. Each prompt analysis is the context, each routing strategy is an action, and the reward balances:
+
+- heuristic expected quality
+- estimated API cost
+- latency/retry/verification overhead
+
+Train the RL-style policy:
+
+```bash
+python run_train_rl_routing_policy.py \
+  --suite_path data/service_request_suite.json \
+  --output_path outputs/rl_routing_policy.json \
+  --metrics_path outputs/rl_routing_policy_metrics.json \
+  --history_path outputs/rl_routing_policy_history.json
+```
+
+Run the backend with the RL policy:
+
+```bash
+ROUTING_POLICY_PATH=outputs/rl_routing_policy.json \
+uvicorn backend.app.main:app --host 127.0.0.1 --port 8000
+```
+
+On Windows PowerShell:
+
+```powershell
+$env:ROUTING_POLICY_PATH="outputs/rl_routing_policy.json"
+uvicorn backend.app.main:app --host 127.0.0.1 --port 8000
+```
+
+This is still offline RL with a simulated reward. The next production step is to log explicit user feedback or evaluator scores, then train the same bandit update from observed rewards instead of the heuristic reward.
+
+## RLHF Feedback Loop
+
+The service can now collect human feedback for each generated response:
+
+```bash
+curl -X POST http://127.0.0.1:8000/api/feedback \
+  -H "Content-Type: application/json" \
+  -d "{\"requestId\":\"REQUEST_ID_FROM_OPTIMIZE\",\"reviewerId\":\"rater_01\",\"rating\":1,\"qualityScore\":1.0,\"comment\":\"Good answer\"}"
+```
+
+Feedback fields:
+
+- `reviewerId`: required reviewer identifier, such as `rater_01`
+- `rating`: `1` for good, `-1` for bad, `0` for neutral
+- `qualityScore`: optional normalized human reward from `0.0` to `1.0`
+- `comment`: optional annotation for later analysis
+
+Multiple reviewers can evaluate the same `requestId`. During RLHF training, feedback is aggregated per request by mean reward. If the same reviewer submits multiple ratings for the same request, the latest stored row is used and older rows are ignored for that reviewer/request pair.
+
+Train from collected human feedback:
+
+```bash
+python run_train_rlhf_policy.py \
+  --sqlite_path outputs/usage.db \
+  --initial_model_path outputs/rl_routing_policy.json \
+  --output_path outputs/rlhf_routing_policy.json \
+  --metrics_path outputs/rlhf_routing_policy_metrics.json \
+  --history_path outputs/rlhf_routing_policy_history.json
+```
+
+Run the backend with the RLHF-trained policy:
+
+```powershell
+$env:ROUTING_POLICY_PATH="outputs/rlhf_routing_policy.json"
+uvicorn backend.app.main:app --host 127.0.0.1 --port 8000
+```
+
+This is RLHF for routing policy optimization, not LLM weight fine-tuning. Human feedback updates which provider/strategy the gateway selects for future requests.
+
 ## Structure
 
 ```text
@@ -131,6 +204,8 @@ frontend/
 data/
   service_request_suite.json
 run_train_routing_model.py
+run_train_rl_routing_policy.py
+run_train_rlhf_policy.py
 docker-compose.yml
 ```
 

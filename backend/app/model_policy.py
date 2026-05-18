@@ -60,6 +60,8 @@ class LinearRoutingModel:
     action_keys: list[str]
     weights: list[list[float]]
     bias: list[float]
+    model_type: str = "linear_routing_policy"
+    metadata: dict[str, Any] | None = None
 
     def scores(self, features: list[float]) -> list[float]:
         rows = []
@@ -82,11 +84,12 @@ class LinearRoutingModel:
 
     def to_json(self) -> dict[str, Any]:
         return {
-            "model_type": "linear_routing_policy",
+            "model_type": self.model_type,
             "feature_names": self.feature_names,
             "action_keys": self.action_keys,
             "weights": self.weights,
             "bias": self.bias,
+            "metadata": self.metadata or {},
         }
 
     @classmethod
@@ -96,6 +99,8 @@ class LinearRoutingModel:
             action_keys=list(payload["action_keys"]),
             weights=[[float(v) for v in row] for row in payload["weights"]],
             bias=[float(v) for v in payload["bias"]],
+            model_type=str(payload.get("model_type", "linear_routing_policy")),
+            metadata=dict(payload.get("metadata", {})),
         )
 
 
@@ -127,7 +132,7 @@ def encode_features(analysis: PromptAnalysis, max_completion_tokens: int) -> tup
     add("complexity_score", analysis.complexityScore)
     add("risk_score", analysis.riskScore)
 
-    for task in ["math", "coding", "general", "summarization", "writing", "classification"]:
+    for task in ["math", "coding", "stock", "general", "summarization", "writing", "classification"]:
         add(f"task_{task}", 1.0 if analysis.taskType.value == task else 0.0)
     for domain in ["business", "software", "education", "legal", "medical", "finance", "general"]:
         add(f"domain_{domain}", 1.0 if analysis.domain.value == domain else 0.0)
@@ -164,9 +169,16 @@ class ModelPolicy(Policy):
         idx = self.model.predict_index(features, blocked_actions=blocked)
         strategy = strategy_from_action_key(
             self.model.action_keys[idx],
-            reason="Learned linear routing model selected this strategy from prompt analysis features.",
+            reason=self._decision_reason(),
         )
         return strategy, candidates
+
+    def _decision_reason(self) -> str:
+        if self.model.model_type == "linear_rlhf_bandit_policy":
+            return "RLHF bandit policy selected this strategy from prompt analysis and human feedback rewards."
+        if self.model.model_type == "linear_contextual_bandit_policy":
+            return "RL contextual bandit policy selected the highest expected reward strategy from prompt analysis features."
+        return "Learned linear routing model selected this strategy from prompt analysis features."
 
 
 def load_model_policy(path: str) -> ModelPolicy:

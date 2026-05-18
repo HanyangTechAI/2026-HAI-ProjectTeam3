@@ -1,6 +1,6 @@
 import uuid
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
 from .analyzer import analyze_prompt
@@ -8,7 +8,7 @@ from .model_policy import build_policy_from_env
 from .policy import selected_cost
 from .pricing import estimate_cost
 from .providers import build_inference_prompt, provider_for
-from .schemas import OptimizeResponse, PromptRequest, ProviderUsage, StatsResponse
+from .schemas import FeedbackRequest, FeedbackResponse, OptimizeResponse, PromptRequest, ProviderUsage, StatsResponse
 from .store import UsageStore
 
 
@@ -80,10 +80,34 @@ def optimize(request: PromptRequest) -> OptimizeResponse:
             "completion_tokens": usage.completionTokens,
             "total_tokens": usage.totalTokens,
             "estimated_cost_usd": usage.estimatedCostUsd,
-            "payload": response.model_dump(mode="json"),
+            "payload": {
+                **response.model_dump(mode="json"),
+                "trainingContext": {
+                    "prompt": request.prompt,
+                    "maxCompletionTokens": request.maxCompletionTokens,
+                },
+            },
         }
     )
     return response
+
+
+@app.post("/api/feedback", response_model=FeedbackResponse)
+def feedback(request: FeedbackRequest) -> FeedbackResponse:
+    if not store.request_exists(request.requestId):
+        raise HTTPException(status_code=404, detail="requestId was not found in usage logs")
+    reward = request.qualityScore if request.qualityScore is not None else (request.rating + 1) / 2
+    store.insert_feedback(
+        {
+            "request_id": request.requestId,
+            "reviewer_id": request.reviewerId.strip() or "anonymous",
+            "rating": request.rating,
+            "quality_score": request.qualityScore,
+            "reward": reward,
+            "comment": request.comment,
+        }
+    )
+    return FeedbackResponse(status="ok", requestId=request.requestId, reward=reward)
 
 
 @app.get("/api/stats", response_model=StatsResponse)

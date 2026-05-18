@@ -7,6 +7,7 @@ from pydantic import BaseModel, Field
 class TaskType(str, Enum):
     MATH = "math"
     CODING = "coding"
+    STOCK = "stock"
     GENERAL = "general"
     SUMMARIZATION = "summarization"
     WRITING = "writing"
@@ -52,6 +53,20 @@ class PromptRequest(BaseModel):
     prompt: str = Field(..., min_length=1)
     maxCompletionTokens: int = Field(default=512, ge=32, le=8192)
     forceMock: bool = False
+
+
+class FeedbackRequest(BaseModel):
+    requestId: str = Field(..., min_length=1)
+    reviewerId: str = Field(default="anonymous", min_length=1, max_length=80)
+    rating: int = Field(..., ge=-1, le=1)
+    qualityScore: float | None = Field(default=None, ge=0.0, le=1.0)
+    comment: str = ""
+
+
+class FeedbackResponse(BaseModel):
+    status: str
+    requestId: str
+    reward: float
 
 
 class PromptAnalysis(BaseModel):
@@ -113,8 +128,11 @@ class OptimizeResponse(BaseModel):
 
 class StatsResponse(BaseModel):
     totalRequests: int
+    totalFeedback: int = 0
     totalTokens: int
     estimatedCostUsd: float
     routeCounts: dict[str, int]
     taskCounts: dict[str, int]
+    feedbackCounts: dict[str, int] = {}
+    reviewerCounts: dict[str, int] = {}
     recent: list[dict[str, Any]]

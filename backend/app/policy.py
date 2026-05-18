@@ -52,6 +52,13 @@ class RuleBasedPolicy(Policy):
             retry = RetryStrategy.ONCE
             compress = False
             reason = "Math with non-trivial reasoning: choose a large Gemini route for lower estimated cost than the large OpenAI route while keeping verification."
+        elif analysis.taskType == TaskType.STOCK:
+            route = ModelRoute.OPENAI_LARGE
+            depth = ReasoningDepth.LONG
+            verify = True
+            retry = RetryStrategy.ONCE
+            compress = analysis.promptTokensEstimate > 1200
+            reason = "Stock or investing request: use a stronger verified route because financial guidance is sensitive and often needs careful caveats."
         elif analysis.promptTokensEstimate > 1800:
             route = ModelRoute.GEMINI_SMALL
             depth = ReasoningDepth.SHORT

@@ -36,7 +36,23 @@
 
     <section class="panel">
       <h2>Response</h2>
-      <pre id="output">Ready.</pre>
+      <div id="responseText" class="response-box">Ready.</div>
+      <div id="feedbackPanel" class="feedback" hidden>
+        <label for="reviewerId">Reviewer ID</label>
+        <input id="reviewerId" type="text" maxlength="80" placeholder="rater_01">
+        <div class="feedback-actions">
+          <button id="goodBtn" type="button">Good</button>
+          <button id="badBtn" type="button" class="secondary">Bad</button>
+        </div>
+        <label for="feedbackComment">Feedback note</label>
+        <textarea id="feedbackComment" class="feedback-note" placeholder="Optional note for RLHF training"></textarea>
+        <div id="feedbackStatus" class="status"></div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>Debug Payload</h2>
+      <pre id="output">Run a request to inspect the full response payload.</pre>
     </section>
 
     <section class="panel">

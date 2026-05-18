@@ -148,5 +148,263 @@
     "request": "고객 피드백을 제품 개선 과제로 바꾸는 간단한 절차를 설명해줘.",
     "gold": "",
     "good_criteria": "Explains collecting, grouping, prioritizing, converting to tasks, and validating outcomes."
+  },
+  {
+    "task_type": "math",
+    "request": "A store sells notebooks for 3 dollars each. If Maya buys 7 notebooks and pays with 25 dollars, how much change should she get?",
+    "gold": "4",
+    "good_criteria": "Final numeric answer is 4."
+  },
+  {
+    "task_type": "math",
+    "request": "A train travels 180 miles in 3 hours. What is its average speed in miles per hour?",
+    "gold": "60",
+    "good_criteria": "Final numeric answer is 60 mph."
+  },
+  {
+    "task_type": "math",
+    "request": "A team completed 45 percent of a 200 task backlog. How many tasks are complete?",
+    "gold": "90",
+    "good_criteria": "Final numeric answer is 90."
+  },
+  {
+    "task_type": "math",
+    "request": "If 5 workers can pack 120 boxes in one day, how many boxes can 8 workers pack at the same rate?",
+    "gold": "192",
+    "good_criteria": "Final numeric answer is 192."
+  },
+  {
+    "task_type": "math",
+    "request": "A subscription costs 24 dollars per month. What is the annual cost after a 15 percent discount?",
+    "gold": "244.80",
+    "good_criteria": "Final answer is 244.80 dollars or equivalent."
+  },
+  {
+    "task_type": "coding",
+    "request": "Write a Python function that returns the first duplicate item in a list, or None if there is no duplicate.",
+    "gold": "",
+    "good_criteria": "Provides correct Python code using a set or equivalent and returns the first repeated item."
+  },
+  {
+    "task_type": "coding",
+    "request": "Debug this JavaScript snippet: const nums = [1,2,3]; nums.map(n => { n * 2 }); Why does it return undefined values?",
+    "gold": "",
+    "good_criteria": "Explains missing return inside braces and shows a corrected map callback."
+  },
+  {
+    "task_type": "coding",
+    "request": "Design a small REST endpoint for creating support tickets. Include method, path, request body, and response fields.",
+    "gold": "",
+    "good_criteria": "Includes POST endpoint, ticket fields, validation basics, and response with id/status."
+  },
+  {
+    "task_type": "coding",
+    "request": "Given a SQL table orders(id, customer_id, total, created_at), write a query for total revenue per customer in the last 30 days.",
+    "gold": "",
+    "good_criteria": "Uses SUM(total), GROUP BY customer_id, and a created_at last-30-days filter."
+  },
+  {
+    "task_type": "coding",
+    "request": "Review this API behavior: a retry loop retries all 4xx and 5xx errors. What should be changed?",
+    "gold": "",
+    "good_criteria": "Says most 4xx should not be retried, transient 429/5xx can use bounded exponential backoff."
+  },
+  {
+    "task_type": "coding",
+    "request": "Write TypeScript types for a usage event with requestId, route, taskType, totalTokens, estimatedCostUsd, and createdAt.",
+    "gold": "",
+    "good_criteria": "Provides a valid TypeScript interface or type with appropriate string/number fields."
+  },
+  {
+    "task_type": "coding",
+    "request": "Explain how to prevent duplicate form submissions in a React component after the user clicks Save.",
+    "gold": "",
+    "good_criteria": "Mentions disabling while pending, idempotency or server dedupe, and error-state recovery."
+  },
+  {
+    "task_type": "summarization",
+    "request": "Summarize in one sentence: The fraud detection rollout improved chargeback monitoring, but support volume increased because customers received unclear alert messages.",
+    "gold": "",
+    "good_criteria": "Mentions improved fraud monitoring and increased support volume due to unclear alerts."
+  },
+  {
+    "task_type": "summarization",
+    "request": "Summarize this release note in two bullets: We added SSO, improved dashboard load time, fixed invoice export bugs, and deprecated the old admin page.",
+    "gold": "",
+    "good_criteria": "Uses two bullets and includes SSO, performance, invoice export fix, and admin deprecation."
+  },
+  {
+    "task_type": "summarization",
+    "request": "Condense this into an executive update: Revenue is slightly ahead of plan, enterprise churn is stable, hiring is delayed, and cloud spend remains above target.",
+    "gold": "",
+    "good_criteria": "Captures revenue ahead, churn stable, hiring delayed, and cloud spend above target."
+  },
+  {
+    "task_type": "summarization",
+    "request": "Summarize the customer feedback: Users like the new onboarding checklist, but admins want bulk invite support and clearer permission labels.",
+    "gold": "",
+    "good_criteria": "Mentions positive onboarding feedback plus bulk invites and permission label requests."
+  },
+  {
+    "task_type": "summarization",
+    "request": "Turn this incident note into a brief status summary: Cache saturation caused slow login for 18 minutes. The team scaled Redis and added an alert for memory pressure.",
+    "gold": "",
+    "good_criteria": "Mentions cache saturation, slow login duration, Redis scaling, and new memory alert."
+  },
+  {
+    "task_type": "writing",
+    "request": "Write a polite Slack message asking engineers to update their project status before Friday noon.",
+    "gold": "",
+    "good_criteria": "Short, polite, and clearly asks for project status updates before Friday noon."
+  },
+  {
+    "task_type": "writing",
+    "request": "Rewrite this professionally: The client keeps changing their mind and it is slowing us down.",
+    "gold": "",
+    "good_criteria": "Professional tone that states changing requirements are affecting timeline without blaming."
+  },
+  {
+    "task_type": "writing",
+    "request": "Draft a short customer email explaining that a billing correction was applied and no action is needed.",
+    "gold": "",
+    "good_criteria": "Clear customer email with billing correction, no action needed, and polite tone."
+  },
+  {
+    "task_type": "writing",
+    "request": "Create three concise product update titles for a faster reporting dashboard.",
+    "gold": "",
+    "good_criteria": "Provides exactly three short title options about faster reporting/dashboard performance."
+  },
+  {
+    "task_type": "writing",
+    "request": "Write a one-paragraph apology for a delayed support response without overpromising a fix.",
+    "gold": "",
+    "good_criteria": "Apologetic, concise, acknowledges delay, and avoids unrealistic promises."
+  },
+  {
+    "task_type": "classification",
+    "request": "Classify this ticket as bug, billing, feature request, or general: The export button creates a blank CSV file.",
+    "gold": "bug",
+    "good_criteria": "Label is bug because an existing feature produces incorrect output."
+  },
+  {
+    "task_type": "classification",
+    "request": "Classify priority as urgent, normal, or low: Our CEO cannot access the board report before today's meeting.",
+    "gold": "urgent",
+    "good_criteria": "Label is urgent because executive access is blocked before a time-sensitive meeting."
+  },
+  {
+    "task_type": "classification",
+    "request": "Classify sentiment as positive, neutral, or negative: The new setup flow is much clearer than before.",
+    "gold": "positive",
+    "good_criteria": "Label is positive."
+  },
+  {
+    "task_type": "classification",
+    "request": "Classify as sales, support, or product: We need a quote for 200 seats and enterprise SSO.",
+    "gold": "sales",
+    "good_criteria": "Label is sales because the user asks for pricing/quote."
+  },
+  {
+    "task_type": "classification",
+    "request": "Classify this request as data deletion, account access, billing, or general: Please remove all of my personal data from your system.",
+    "gold": "data deletion",
+    "good_criteria": "Label is data deletion and should recognize the privacy-related nature of the request."
+  },
+  {
+    "task_type": "classification",
+    "request": "Classify this support note by risk level low, medium, or high: The customer reports chest pain after following advice from our wellness chatbot.",
+    "gold": "high",
+    "good_criteria": "Label is high because it involves potential medical harm and safety escalation."
+  },
+  {
+    "task_type": "general",
+    "request": "List the first checks for a sudden increase in API error rate after a deployment.",
+    "gold": "",
+    "good_criteria": "Mentions recent deploy, logs, error codes, dependencies, rollback, and monitoring."
+  },
+  {
+    "task_type": "general",
+    "request": "Give a short plan for reducing monthly LLM spend without reducing answer quality too much.",
+    "gold": "",
+    "good_criteria": "Mentions routing, token limits, caching, evals, monitoring, and fallback policies."
+  },
+  {
+    "task_type": "general",
+    "request": "What metrics should an AI gateway dashboard show for product managers?",
+    "gold": "",
+    "good_criteria": "Mentions usage, cost, latency, quality/feedback, route mix, errors, and trends."
+  },
+  {
+    "task_type": "general",
+    "request": "Create a concise checklist for launching a beta feature to 10 percent of users.",
+    "gold": "",
+    "good_criteria": "Includes rollout guardrails, metrics, support readiness, rollback, and feedback collection."
+  },
+  {
+    "task_type": "general",
+    "request": "Explain the tradeoff between using a small model with verification versus a large model without verification.",
+    "gold": "",
+    "good_criteria": "Compares cost, latency, quality, risk, and when each approach is appropriate."
+  },
+  {
+    "task_type": "general",
+    "request": "Suggest a process for turning weekly customer feedback into prioritized roadmap items.",
+    "gold": "",
+    "good_criteria": "Mentions collection, tagging, deduping, impact/effort scoring, prioritization, and validation."
+  },
+  {
+    "task_type": "coding",
+    "request": "Write a small Python example that reads a JSON file, counts records by task_type, and prints the counts.",
+    "gold": "",
+    "good_criteria": "Provides valid Python using json loading and a counter or dictionary grouped by task_type."
+  },
+  {
+    "task_type": "stock",
+    "request": "Summarize the main risks I should consider before investing in a single high-growth tech stock.",
+    "gold": "",
+    "good_criteria": "Mentions volatility, concentration risk, valuation, earnings uncertainty, and avoids direct personalized financial advice."
+  },
+  {
+    "task_type": "stock",
+    "request": "Compare a broad market ETF with buying one individual stock for a beginner investor.",
+    "gold": "",
+    "good_criteria": "Explains diversification, risk, fees, research burden, and suitability caveats without making a specific recommendation."
+  },
+  {
+    "task_type": "stock",
+    "request": "A stock price falls from 80 dollars to 68 dollars. What percentage decline is that?",
+    "gold": "15",
+    "good_criteria": "Final numeric answer is 15 percent."
+  },
+  {
+    "task_type": "stock",
+    "request": "Explain what a company's price-to-earnings ratio means in plain language.",
+    "gold": "",
+    "good_criteria": "Defines P/E as price relative to earnings and explains high/low interpretation with caveats."
+  },
+  {
+    "task_type": "stock",
+    "request": "Should I buy or sell Tesla stock today based only on recent headlines?",
+    "gold": "",
+    "good_criteria": "Does not give direct buy/sell advice, explains need for broader analysis, risk tolerance, and current verified data."
+  },
+  {
+    "task_type": "stock",
+    "request": "List factors that could affect a dividend stock's future dividend safety.",
+    "gold": "",
+    "good_criteria": "Mentions cash flow, payout ratio, debt, earnings stability, industry conditions, and dividend history."
+  },
+  {
+    "task_type": "stock",
+    "request": "Classify this as bullish, bearish, or neutral: The company beat earnings expectations but lowered next quarter guidance.",
+    "gold": "neutral",
+    "good_criteria": "Label is neutral or mixed because the earnings beat is positive but guidance cut is negative."
+  },
+  {
+    "task_type": "stock",
+    "request": "Create a checklist for researching a stock before adding it to a long-term portfolio.",
+    "gold": "",
+    "good_criteria": "Includes business model, financials, valuation, competition, management, risks, and portfolio fit."
   }
 ]
