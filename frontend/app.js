@@ -1,8 +1,12 @@
-const API_BASE =
-  window.API_BASE ||
-  (window.location.hostname
-    ? `${window.location.protocol}//${window.location.hostname}:8000`
-    : "http://127.0.0.1:8000");
+const API_BASE = window.API_BASE || defaultApiBase();
+
+function defaultApiBase() {
+  if (!window.location.hostname) return "http://127.0.0.1:8000";
+  if (window.location.port === "3000") {
+    return `${window.location.protocol}//${window.location.hostname}:8000`;
+  }
+  return window.location.origin;
+}
 
 const promptEl = document.getElementById("prompt");
 const maxTokensEl = document.getElementById("maxTokens");

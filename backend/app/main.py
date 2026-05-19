@@ -1,7 +1,10 @@
 import uuid
+from pathlib import Path
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 
 from .analyzer import analyze_prompt
 from .model_policy import build_policy_from_env
@@ -23,6 +26,20 @@ app.add_middleware(
 
 policy = build_policy_from_env()
 store = UsageStore()
+frontend_dir = Path(__file__).resolve().parents[2] / "frontend"
+
+
+@app.get("/", include_in_schema=False)
+def index():
+    index_file = frontend_dir / "index.html"
+    if index_file.exists():
+        return FileResponse(index_file)
+    return {
+        "status": "ok",
+        "service": "ai-api-cost-optimizer",
+        "docs": "/docs",
+        "health": "/health",
+    }
 
 
 @app.get("/health")
@@ -113,3 +130,7 @@ def feedback(request: FeedbackRequest) -> FeedbackResponse:
 @app.get("/api/stats", response_model=StatsResponse)
 def stats() -> StatsResponse:
     return StatsResponse(**store.stats())
+
+
+if frontend_dir.exists():
+    app.mount("/", StaticFiles(directory=frontend_dir, html=True), name="frontend")
