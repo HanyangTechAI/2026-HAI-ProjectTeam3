@@ -1,3 +1,4 @@
+import os
 import uuid
 from pathlib import Path
 
@@ -11,7 +12,15 @@ from .model_policy import build_policy_from_env
 from .policy import selected_cost
 from .pricing import estimate_cost
 from .providers import build_inference_prompt, provider_for
-from .schemas import FeedbackRequest, FeedbackResponse, OptimizeResponse, PromptRequest, ProviderUsage, StatsResponse
+from .schemas import (
+    FeedbackRequest,
+    FeedbackResponse,
+    ModelRoute,
+    OptimizeResponse,
+    PromptRequest,
+    ProviderUsage,
+    StatsResponse,
+)
 from .store import UsageStore
 
 
@@ -63,11 +72,44 @@ def optimize(request: PromptRequest) -> OptimizeResponse:
     estimated = selected_cost(analysis, strategy, request.maxCompletionTokens)
     inference_prompt = build_inference_prompt(request.prompt, strategy)
     provider = provider_for(strategy, force_mock=request.forceMock)
-    output, usage, provider_mode = provider.generate(
-        prompt=inference_prompt,
-        strategy=strategy,
-        max_completion_tokens=request.maxCompletionTokens,
-    )
+    try:
+        output, usage, provider_mode = provider.generate(
+            prompt=inference_prompt,
+            strategy=strategy,
+            max_completion_tokens=request.maxCompletionTokens,
+        )
+    except Exception as exc:
+        if strategy.modelRoute in {ModelRoute.GEMINI_SMALL, ModelRoute.GEMINI_LARGE} and os.getenv("OPENAI_API_KEY"):
+            fallback_route = (
+                ModelRoute.OPENAI_LARGE
+                if strategy.modelRoute == ModelRoute.GEMINI_LARGE
+                else ModelRoute.OPENAI_SMALL
+            )
+            strategy = strategy.model_copy(
+                update={
+                    "modelRoute": fallback_route,
+                    "decisionReason": f"{strategy.decisionReason} Gemini provider failed, so OpenAI fallback was used.",
+                }
+            )
+            estimated = selected_cost(analysis, strategy, request.maxCompletionTokens)
+            provider = provider_for(strategy, force_mock=False)
+            try:
+                output, usage, provider_mode = provider.generate(
+                    prompt=inference_prompt,
+                    strategy=strategy,
+                    max_completion_tokens=request.maxCompletionTokens,
+                )
+                provider_mode = f"{provider_mode}-fallback"
+            except Exception as fallback_exc:
+                raise HTTPException(
+                    status_code=502,
+                    detail=f"Provider request failed for {strategy.modelRoute.value}: {fallback_exc}",
+                ) from fallback_exc
+        else:
+            raise HTTPException(
+                status_code=502,
+                detail=f"Provider request failed for {strategy.modelRoute.value}: {exc}",
+            ) from exc
 
     if usage.estimatedCostUsd == 0.0 and strategy.modelRoute.value != "local":
         actualish_cost = estimate_cost(strategy.modelRoute, usage.promptTokens, usage.completionTokens)

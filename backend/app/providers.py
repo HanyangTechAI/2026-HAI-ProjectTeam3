@@ -10,8 +10,8 @@ OPENAI_MODEL_NAMES = {
 }
 
 GEMINI_MODEL_NAMES = {
-    ModelRoute.GEMINI_SMALL: "gemini-1.5-flash",
-    ModelRoute.GEMINI_LARGE: "gemini-1.5-pro",
+    ModelRoute.GEMINI_SMALL: "gemini-2.5-flash-lite",
+    ModelRoute.GEMINI_LARGE: "gemini-2.5-flash",
 }
 
 
@@ -67,7 +67,7 @@ class GeminiProvider:
         self.client = genai.Client(api_key=os.environ["GEMINI_API_KEY"])
 
     def generate(self, prompt: str, strategy: InferenceStrategy, max_completion_tokens: int) -> tuple[str, ProviderUsage, str]:
-        model = GEMINI_MODEL_NAMES[strategy.modelRoute]
+        model = gemini_model_name(strategy.modelRoute)
         response = self.client.models.generate_content(
             model=model,
             contents=prompt,
@@ -82,6 +82,14 @@ class GeminiProvider:
             estimatedCostUsd=0.0,
         )
         return text, usage, "gemini"
+
+
+def gemini_model_name(route: ModelRoute) -> str:
+    if route == ModelRoute.GEMINI_SMALL:
+        return os.getenv("GEMINI_SMALL_MODEL", GEMINI_MODEL_NAMES[route])
+    if route == ModelRoute.GEMINI_LARGE:
+        return os.getenv("GEMINI_LARGE_MODEL", GEMINI_MODEL_NAMES[route])
+    return GEMINI_MODEL_NAMES[route]
 
 
 def provider_for(strategy: InferenceStrategy, force_mock: bool = False) -> Provider:

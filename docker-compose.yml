@@ -16,8 +16,10 @@ services:
       dockerfile: backend/Dockerfile
     environment:
       DATABASE_URL: postgresql://optimizer:optimizer@db:5432/optimizer
-      OPENAI_API_KEY: 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
-      GEMINI_API_KEY: AIzaSyDN77Ne3Nn6vn_FavHGMnlqLHNKNDYBiLw
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      GEMINI_SMALL_MODEL: ${GEMINI_SMALL_MODEL:-gemini-2.5-flash-lite}
+      GEMINI_LARGE_MODEL: ${GEMINI_LARGE_MODEL:-gemini-2.5-flash}
     depends_on:
       - db
     ports:

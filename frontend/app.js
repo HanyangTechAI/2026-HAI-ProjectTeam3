@@ -47,7 +47,7 @@ async function run() {
         forceMock: forceMockEl.checked,
       }),
     });
-    const data = await response.json();
+    const data = await parseApiResponse(response);
     if (!response.ok) throw new Error(data.detail || response.statusText);
     lastResponse = data;
     renderStrategy(data);
@@ -87,7 +87,7 @@ async function sendFeedback(rating) {
         comment: feedbackCommentEl.value,
       }),
     });
-    const data = await response.json();
+    const data = await parseApiResponse(response);
     if (!response.ok) throw new Error(data.detail || response.statusText);
     feedbackStatusEl.textContent = `Saved feedback reward=${Number(data.reward).toFixed(2)}`;
     feedbackCommentEl.value = "";
@@ -103,7 +103,7 @@ async function sendFeedback(rating) {
 async function refreshStats() {
   try {
     const response = await fetch(`${API_BASE}/api/stats`);
-    const data = await response.json();
+    const data = await parseApiResponse(response);
     renderStats(data);
   } catch (err) {
     statsEl.innerHTML = card("Stats", "Unavailable");
@@ -124,6 +124,17 @@ function renderStrategy(data) {
     card("Provider Mode", data.providerMode),
     card("Decision", data.strategy.decisionReason),
   ].join("");
+}
+
+async function parseApiResponse(response) {
+  const contentType = response.headers.get("content-type") || "";
+  if (contentType.includes("application/json")) {
+    return response.json();
+  }
+  const text = await response.text();
+  return {
+    detail: text || response.statusText || `HTTP ${response.status}`,
+  };
 }
 
 function renderStats(data) {

@@ -1,18 +1,44 @@
-# AI API Cost Optimizer SaaS
+# AI API Cost Optimizer
 
-사용자 요청을 분석해서 OpenAI, Gemini, local/mock 중 비용 대비 효율이 좋은 추론 전략을 선택하는 AI Gateway 서비스입니다.
+AI API Cost Optimizer is a small gateway service that analyzes each prompt, selects a cost-aware inference strategy, calls an LLM provider when available, and records usage plus human feedback for later routing-policy training.
 
-프로젝트 목표는 단순 API 호출 래퍼가 아니라, 실제 요청 로그와 피드백을 바탕으로 모델 라우팅 정책을 계속 개선하는 것입니다.
+The service supports OpenAI, Gemini, and local/mock execution. If provider credentials are missing, routes fall back to mock output. If a Gemini request fails and an OpenAI key is available, the backend retries once through the matching OpenAI route.
 
 ## Features
 
-- Prompt analysis: task type, domain, risk, complexity, estimated tokens
-- Routing strategy: model route, reasoning depth, verification, retry, context compression
-- Cost estimation: route별 예상 input/output cost
-- Provider execution: OpenAI, Gemini, mock/local fallback
-- Usage tracking: SQLite or PostgreSQL
-- Frontend dashboard: prompt input, selected strategy, response, usage stats
-- Learned policy: trainable linear routing model with rule-based fallback
+- Prompt analysis: task type, domain, risk, complexity, and token estimates
+- Routing strategy: model route, reasoning depth, verification, retry, and context compression
+- Cost estimation for OpenAI, Gemini, and local/mock routes
+- Provider execution through OpenAI, Gemini, or mock fallback
+- Usage tracking in SQLite by default or PostgreSQL through Docker Compose
+- Frontend dashboard for prompts, selected strategy, responses, feedback, and stats
+- Trainable linear routing policies, including offline RL and RLHF-style feedback training
+
+## Environment
+
+Create a local `.env` from the committed template:
+
+```bash
+cp .env.example .env
+```
+
+`.env` is ignored by git. Put real provider keys there only if you want live API calls:
+
+```bash
+OPENAI_API_KEY=
+GEMINI_API_KEY=
+GEMINI_SMALL_MODEL=gemini-2.5-flash-lite
+GEMINI_LARGE_MODEL=gemini-2.5-flash
+DATABASE_URL=postgresql://optimizer:optimizer@localhost:5432/optimizer
+ROUTING_POLICY_PATH=outputs/routing_policy.json
+```
+
+Notes:
+
+- `OPENAI_API_KEY` and `GEMINI_API_KEY` are optional. Without them, the backend uses mock providers where needed.
+- `GEMINI_LARGE_MODEL` defaults to `gemini-2.5-flash` because `gemini-2.5-pro` may have no free-tier quota.
+- Without `DATABASE_URL`, usage is stored in `outputs/usage.db`.
+- `ROUTING_POLICY_PATH` is optional. If unset, the server tries `outputs/routing_policy.json` and otherwise falls back to the rule-based policy.
 
 ## Run Locally
 
@@ -22,38 +48,29 @@ Install dependencies:
 pip install -r requirements.txt
 ```
 
-Start backend:
+Start the backend:
 
 ```bash
 uvicorn backend.app.main:app --host 127.0.0.1 --port 8000
 ```
 
-Start frontend:
+The backend serves the frontend at:
+
+- App: `http://127.0.0.1:8000`
+- Health: `http://127.0.0.1:8000/health`
+- API docs: `http://127.0.0.1:8000/docs`
+
+You can also serve the frontend separately during UI work:
 
 ```bash
 python -m http.server 3000 --directory frontend
 ```
 
-Open:
-
-- Frontend: `http://127.0.0.1:3000`
-- Backend: `http://127.0.0.1:8000`
-- Health: `http://127.0.0.1:8000/health`
-
-If API keys are not set, the backend automatically falls back to mock providers where needed.
-
-Environment variables:
-
-```bash
-OPENAI_API_KEY=...
-GEMINI_API_KEY=...
-DATABASE_URL=postgresql://optimizer:optimizer@localhost:5432/optimizer
-ROUTING_POLICY_PATH=outputs/routing_policy.json
-```
-
-Without `DATABASE_URL`, usage is stored in `outputs/usage.db`.
+Then open `http://127.0.0.1:3000`. The frontend will call the backend on port `8000`.
 
 ## Docker Compose
+
+Start the full stack:
 
 ```bash
 docker compose up --build
@@ -63,11 +80,26 @@ Services:
 
 - Frontend: `http://127.0.0.1:3000`
 - Backend: `http://127.0.0.1:8000`
+- Backend also mapped on: `http://127.0.0.1`
 - PostgreSQL: `localhost:5432`
+
+If you change backend or frontend source, rebuild the containers:
+
+```bash
+docker compose up --build
+```
 
 ## API
 
-Optimize and execute:
+Optimize and execute a prompt:
+
+```bash
+curl -X POST http://127.0.0.1:8000/api/optimize \
+  -H "Content-Type: application/json" \
+  -d "{\"prompt\":\"A jacket costs 80 dollars and is discounted by 25 percent. What is the sale price?\",\"maxCompletionTokens\":512,\"forceMock\":false}"
+```
+
+Force mock mode:
 
 ```bash
 curl -X POST http://127.0.0.1:8000/api/optimize \
@@ -75,23 +107,44 @@ curl -X POST http://127.0.0.1:8000/api/optimize \
   -d "{\"prompt\":\"Write a short follow-up email about contract review.\",\"forceMock\":true}"
 ```
 
-Stats:
+Submit feedback:
+
+```bash
+curl -X POST http://127.0.0.1:8000/api/feedback \
+  -H "Content-Type: application/json" \
+  -d "{\"requestId\":\"REQUEST_ID_FROM_OPTIMIZE\",\"reviewerId\":\"rater_01\",\"rating\":1,\"qualityScore\":1.0,\"comment\":\"Good answer\"}"
+```
+
+Stats and health:
 
 ```bash
 curl http://127.0.0.1:8000/api/stats
-```
-
-Health:
-
-```bash
 curl http://127.0.0.1:8000/health
 ```
 
+## Provider Behavior
+
+Provider routes are selected by the active routing policy:
+
+- OpenAI small: `gpt-4.1-mini`
+- OpenAI large: `gpt-4.1`
+- Gemini small: `GEMINI_SMALL_MODEL`, default `gemini-2.5-flash-lite`
+- Gemini large: `GEMINI_LARGE_MODEL`, default `gemini-2.5-flash`
+- Local: mock provider
+
+The API returns structured JSON errors for provider failures. Example:
+
+```json
+{
+  "detail": "Provider request failed for gemini-large: ..."
+}
+```
+
+If Gemini fails and `OPENAI_API_KEY` is set, the backend retries once with the matching OpenAI route and marks `providerMode` as `openai-fallback`.
+
 ## Learned Routing Model
 
-The first service model is a pure-Python linear routing policy in `backend/app/model_policy.py`.
-
-It receives `PromptAnalysis` features and chooses one strategy action:
+The learned routing policy is implemented in `backend/app/model_policy.py`. It receives `PromptAnalysis` features and chooses:
 
 - `modelRoute`
 - `reasoningDepth`
@@ -99,7 +152,7 @@ It receives `PromptAnalysis` features and chooses one strategy action:
 - `retry`
 - `contextCompression`
 
-Train the initial model:
+Train the initial supervised routing model:
 
 ```bash
 python run_train_routing_model.py \
@@ -110,15 +163,9 @@ python run_train_routing_model.py \
 
 The server automatically uses `outputs/routing_policy.json` if it exists. If the model file is missing or incompatible, the service falls back to `RuleBasedPolicy`.
 
-Current initial training uses the rule-based policy as a teacher. The next research step is to replace teacher labels with service logs, user feedback, observed cost, latency, and quality scores.
-
 ## RL Routing Policy
 
-The first RL direction is an offline contextual bandit. Each prompt analysis is the context, each routing strategy is an action, and the reward balances:
-
-- heuristic expected quality
-- estimated API cost
-- latency/retry/verification overhead
+The offline RL direction is a contextual bandit. Each prompt analysis is the context, each routing strategy is an action, and the reward balances quality, estimated cost, latency, retry overhead, and verification overhead.
 
 Train the RL-style policy:
 
@@ -130,40 +177,25 @@ python run_train_rl_routing_policy.py \
   --history_path outputs/rl_routing_policy_history.json
 ```
 
-Run the backend with the RL policy:
-
-```bash
-ROUTING_POLICY_PATH=outputs/rl_routing_policy.json \
-uvicorn backend.app.main:app --host 127.0.0.1 --port 8000
-```
-
-On Windows PowerShell:
+Run with the RL policy:
 
 ```powershell
 $env:ROUTING_POLICY_PATH="outputs/rl_routing_policy.json"
 uvicorn backend.app.main:app --host 127.0.0.1 --port 8000
 ```
 
-This is still offline RL with a simulated reward. The next production step is to log explicit user feedback or evaluator scores, then train the same bandit update from observed rewards instead of the heuristic reward.
-
 ## RLHF Feedback Loop
 
-The service can now collect human feedback for each generated response:
-
-```bash
-curl -X POST http://127.0.0.1:8000/api/feedback \
-  -H "Content-Type: application/json" \
-  -d "{\"requestId\":\"REQUEST_ID_FROM_OPTIMIZE\",\"reviewerId\":\"rater_01\",\"rating\":1,\"qualityScore\":1.0,\"comment\":\"Good answer\"}"
-```
+The service collects human feedback for each generated response through `/api/feedback`.
 
 Feedback fields:
 
-- `reviewerId`: required reviewer identifier, such as `rater_01`
+- `reviewerId`: reviewer identifier, such as `rater_01`
 - `rating`: `1` for good, `-1` for bad, `0` for neutral
-- `qualityScore`: optional normalized human reward from `0.0` to `1.0`
+- `qualityScore`: optional normalized reward from `0.0` to `1.0`
 - `comment`: optional annotation for later analysis
 
-Multiple reviewers can evaluate the same `requestId`. During RLHF training, feedback is aggregated per request by mean reward. If the same reviewer submits multiple ratings for the same request, the latest stored row is used and older rows are ignored for that reviewer/request pair.
+Multiple reviewers can evaluate the same `requestId`. During RLHF training, feedback is aggregated per request by mean reward. If the same reviewer submits multiple ratings for the same request, the latest row is used for that reviewer/request pair.
 
 Train from collected human feedback:
 
@@ -176,26 +208,26 @@ python run_train_rlhf_policy.py \
   --history_path outputs/rlhf_routing_policy_history.json
 ```
 
-Run the backend with the RLHF-trained policy:
+Run with the RLHF-trained policy:
 
 ```powershell
 $env:ROUTING_POLICY_PATH="outputs/rlhf_routing_policy.json"
 uvicorn backend.app.main:app --host 127.0.0.1 --port 8000
 ```
 
-This is RLHF for routing policy optimization, not LLM weight fine-tuning. Human feedback updates which provider/strategy the gateway selects for future requests.
+This is RLHF for routing policy optimization, not LLM weight fine-tuning.
 
-## Structure
+## Project Structure
 
 ```text
 backend/app/
   analyzer.py        # prompt analysis
   model_policy.py    # learned linear routing policy
-  policy.py          # Policy interface and RuleBasedPolicy baseline
+  policy.py          # policy interface and rule-based baseline
   pricing.py         # token and route cost estimation
-  providers.py       # OpenAI, Gemini, Mock providers
+  providers.py       # OpenAI, Gemini, and mock providers
   schemas.py         # Pydantic request/response models
-  store.py           # SQLite/PostgreSQL usage store
+  store.py           # SQLite/PostgreSQL usage and feedback store
   main.py            # FastAPI app
 frontend/
   index.html
@@ -209,7 +241,7 @@ run_train_rlhf_policy.py
 docker-compose.yml
 ```
 
-## Research Roadmap
+## Roadmap
 
 - Add offline evaluation against `data/service_request_suite.json`
 - Convert usage logs and Good/Bad feedback into preference pairs
