@@ -7,6 +7,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY backend /app/backend
 COPY frontend /app/frontend
+COPY outputs/rlhf_routing_policy.json /app/outputs/rlhf_routing_policy.json
 
 ENV PYTHONPATH=/app
 EXPOSE 8000

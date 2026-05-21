@@ -89,7 +89,7 @@ def detect_domain(text: str) -> Domain:
         return Domain.SOFTWARE
     if contains_any(text, ["contract", "law", "legal", "privacy", "terms", "compliance"]):
         return Domain.LEGAL
-    if contains_any(text, ["doctor", "medical", "symptom", "medicine", "diagnosis", "health"]):
+    if contains_any(text, ["doctor", "medical", "symptom", "medicine", "diagnosis", "health", "wellness", "chest pain", "pain after", "chatbot advice"]):
         return Domain.MEDICAL
     if contains_any(text, ["invoice", "payment", "subscription", "revenue", "cost", "finance", "billing", "charged", "stock", "ticker", "portfolio", "dividend", "earnings", "investment", "etf"]):
         return Domain.FINANCE
@@ -104,7 +104,7 @@ def detect_risk(text: str, domain: Domain) -> tuple[float, RiskLevel]:
     score = 0.0
     if domain in {Domain.LEGAL, Domain.MEDICAL, Domain.FINANCE}:
         score += 0.45
-    if contains_any(text, ["personal data", "password", "secret", "api key", "refund", "lawsuit", "diagnosis", "buy or sell", "investment advice"]):
+    if contains_any(text, ["personal data", "password", "secret", "api key", "refund", "lawsuit", "diagnosis", "buy or sell", "investment advice", "chest pain", "medical harm", "wellness chatbot"]):
         score += 0.35
     if contains_any(text, ["must", "guarantee", "critical", "production", "security", "compliance"]):
         score += 0.2

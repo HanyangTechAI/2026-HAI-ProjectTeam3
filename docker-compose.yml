@@ -20,6 +20,7 @@ services:
       GEMINI_API_KEY: ${GEMINI_API_KEY:-}
       GEMINI_SMALL_MODEL: ${GEMINI_SMALL_MODEL:-gemini-2.5-flash-lite}
       GEMINI_LARGE_MODEL: ${GEMINI_LARGE_MODEL:-gemini-2.5-flash}
+      ROUTING_POLICY_PATH: ${ROUTING_POLICY_PATH:-outputs/rlhf_routing_policy.json}
     depends_on:
       - db
     ports:

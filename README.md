@@ -142,6 +142,8 @@ The API returns structured JSON errors for provider failures. Example:
 
 If Gemini fails and `OPENAI_API_KEY` is set, the backend retries once with the matching OpenAI route and marks `providerMode` as `openai-fallback`.
 
+High-risk requests detected by the analyzer bypass learned routing and use the rule-based verified large-model route.
+
 ## Learned Routing Model
 
 The learned routing policy is implemented in `backend/app/model_policy.py`. It receives `PromptAnalysis` features and chooses:
@@ -207,6 +209,38 @@ python run_train_rlhf_policy.py \
   --metrics_path outputs/rlhf_routing_policy_metrics.json \
   --history_path outputs/rlhf_routing_policy_history.json
 ```
+
+If feedback was collected in the Docker PostgreSQL database, export both feedback and usage payloads first:
+
+```bash
+mkdir -p outputs
+
+docker compose exec -T db psql -U optimizer -d optimizer \
+  -t -A \
+  -c "select coalesce(json_agg(row_to_json(t)), '[]'::json) from (select id, request_id, reviewer_id, rating, quality_score, reward, comment, created_at from feedback_events order by id desc) t;" \
+  > outputs/feedback_events.json
+
+docker compose exec -T db psql -U optimizer -d optimizer \
+  -t -A \
+  -c "select coalesce(json_agg(row_to_json(t)), '[]'::json) from (select request_id, payload, created_at from usage_events order by created_at desc) t;" \
+  > outputs/usage_events.json
+```
+
+Then train from the exported JSON files:
+
+```bash
+python run_train_rlhf_policy.py \
+  --feedback_json_path outputs/feedback_events.json \
+  --usage_json_path outputs/usage_events.json \
+  --initial_model_path outputs/rl_routing_policy.json \
+  --output_path outputs/rlhf_routing_policy.json \
+  --metrics_path outputs/rlhf_routing_policy_metrics.json \
+  --history_path outputs/rlhf_routing_policy_history.json \
+  --lr 0.02 \
+  --epochs 8
+```
+
+The lower learning rate and shorter run keep the RLHF policy from collapsing all traffic into a single route.
 
 Run with the RLHF-trained policy:
 

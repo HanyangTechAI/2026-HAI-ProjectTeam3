@@ -11,6 +11,7 @@ from .schemas import (
     PromptAnalysis,
     ReasoningDepth,
     RetryStrategy,
+    RiskLevel,
     RouteCandidate,
 )
 
@@ -159,6 +160,8 @@ class ModelPolicy(Policy):
     ) -> tuple[InferenceStrategy, list[RouteCandidate]]:
         if force_mock:
             return self.fallback.choose(analysis, max_completion_tokens, force_mock=True)
+        if analysis.riskLevel == RiskLevel.HIGH:
+            return self.fallback.choose(analysis, max_completion_tokens, force_mock=False)
 
         candidates = build_candidates(analysis, max_completion_tokens)
         _, features = encode_features(analysis, max_completion_tokens)

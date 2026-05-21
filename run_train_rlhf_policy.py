@@ -21,9 +21,7 @@ def dot(row: list[float], features: list[float], bias: float) -> float:
     return sum(w * x for w, x in zip(row, features)) + bias
 
 
-def load_feedback_examples(limit: int | None) -> list[dict[str, Any]]:
-    store = UsageStore()
-    rows = store.feedback_training_rows(limit=limit)
+def build_feedback_examples(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
     grouped: dict[str, dict[str, Any]] = {}
     for row in rows:
         payload = row["payload"]
@@ -89,10 +87,95 @@ def load_feedback_examples(limit: int | None) -> list[dict[str, Any]]:
     return examples
 
 
+def load_feedback_examples(limit: int | None) -> list[dict[str, Any]]:
+    store = UsageStore()
+    rows = store.feedback_training_rows(limit=limit)
+    return build_feedback_examples(rows)
+
+
+def load_json_file(path: str) -> list[dict[str, Any]]:
+    with open(path, "r", encoding="utf-8") as f:
+        payload = json.load(f)
+    if not isinstance(payload, list):
+        raise ValueError(f"{path} must contain a JSON array.")
+    return [dict(item) for item in payload]
+
+
+def normalize_usage_payload(row: dict[str, Any]) -> dict[str, Any]:
+    payload = row.get("payload", row)
+    if isinstance(payload, str):
+        payload = json.loads(payload)
+    if not isinstance(payload, dict):
+        raise ValueError("usage row payload must be a JSON object.")
+    return payload
+
+
+def load_feedback_examples_from_json(
+    feedback_json_path: str,
+    usage_json_path: str | None,
+    limit: int | None,
+) -> list[dict[str, Any]]:
+    feedback_rows = load_json_file(feedback_json_path)
+    if limit is not None:
+        feedback_rows = feedback_rows[:limit]
+
+    payloads_by_request: dict[str, dict[str, Any]] = {}
+    if usage_json_path:
+        for row in load_json_file(usage_json_path):
+            payload = normalize_usage_payload(row)
+            request_id = str(payload.get("requestId") or row.get("request_id") or "")
+            if request_id:
+                payloads_by_request[request_id] = payload
+
+    rows: list[dict[str, Any]] = []
+    missing_payload_count = 0
+    for feedback in feedback_rows:
+        payload = feedback.get("payload")
+        if payload is None:
+            request_id = str(feedback.get("request_id") or "")
+            payload = payloads_by_request.get(request_id)
+        if payload is None:
+            missing_payload_count += 1
+            continue
+        if isinstance(payload, str):
+            payload = json.loads(payload)
+        rows.append(
+            {
+                "payload": payload,
+                "reviewer_id": feedback.get("reviewer_id", "anonymous"),
+                "rating": int(feedback["rating"]),
+                "quality_score": feedback.get("quality_score"),
+                "reward": float(feedback["reward"]),
+                "comment": feedback.get("comment", ""),
+                "created_at": feedback.get("created_at", ""),
+            }
+        )
+
+    if missing_payload_count and not usage_json_path:
+        raise ValueError(
+            f"{feedback_json_path} has {missing_payload_count} feedback rows without payload. "
+            "Export usage_events too and pass --usage_json_path, or export feedback rows with payload included."
+        )
+    return build_feedback_examples(rows)
+
+
 def load_initial_model(path: str | None, feature_names: list[str]) -> LinearRoutingModel:
     if path and os.path.exists(path):
         with open(path, "r", encoding="utf-8") as f:
-            return LinearRoutingModel.from_json(json.load(f))
+            model = LinearRoutingModel.from_json(json.load(f))
+        if model.feature_names == feature_names:
+            return model
+        print(
+            json.dumps(
+                {
+                    "warning": "Initial model feature names do not match current encoder; reinitializing RLHF model.",
+                    "initial_model_path": path,
+                    "initial_feature_count": len(model.feature_names),
+                    "current_feature_count": len(feature_names),
+                },
+                ensure_ascii=False,
+            )
+        )
     feature_dim = len(feature_names)
     return LinearRoutingModel(
         feature_names=feature_names,
@@ -113,8 +196,6 @@ def train_rlhf_bandit(
         raise ValueError("No feedback examples found. Run the app and submit Good/Bad feedback first.")
 
     model = load_initial_model(initial_model_path, examples[0]["feature_names"])
-    if model.feature_names != examples[0]["feature_names"]:
-        raise ValueError("Initial model feature names do not match current encoder.")
 
     weights = [[float(v) for v in row] for row in model.weights]
     bias = [float(v) for v in model.bias]
@@ -220,6 +301,8 @@ def evaluate_weights(
 def main():
     parser = argparse.ArgumentParser(description="Train the routing policy from human feedback rewards.")
     parser.add_argument("--sqlite_path", default="outputs/usage.db")
+    parser.add_argument("--feedback_json_path", default="")
+    parser.add_argument("--usage_json_path", default="")
     parser.add_argument("--initial_model_path", default="outputs/rl_routing_policy.json")
     parser.add_argument("--output_path", default="outputs/rlhf_routing_policy.json")
     parser.add_argument("--metrics_path", default="outputs/rlhf_routing_policy_metrics.json")
@@ -233,7 +316,14 @@ def main():
     if args.sqlite_path:
         os.environ["SQLITE_PATH"] = args.sqlite_path
 
-    examples = load_feedback_examples(limit=args.limit or None)
+    if args.feedback_json_path:
+        examples = load_feedback_examples_from_json(
+            feedback_json_path=args.feedback_json_path,
+            usage_json_path=args.usage_json_path or None,
+            limit=args.limit or None,
+        )
+    else:
+        examples = load_feedback_examples(limit=args.limit or None)
     model, history = train_rlhf_bandit(
         examples=examples,
         initial_model_path=args.initial_model_path,
