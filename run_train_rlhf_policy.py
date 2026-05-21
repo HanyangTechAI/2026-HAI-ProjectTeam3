@@ -5,7 +5,7 @@ import os
 from typing import Any
 
 from backend.app.model_policy import ACTION_KEYS, LinearRoutingModel, action_key, encode_features
-from backend.app.schemas import InferenceStrategy, PromptAnalysis
+from backend.app.schemas import InferenceStrategy, ModelRoute, PromptAnalysis, RiskLevel, TaskType
 from backend.app.store import UsageStore
 
 
@@ -21,7 +21,59 @@ def dot(row: list[float], features: list[float], bias: float) -> float:
     return sum(w * x for w, x in zip(row, features)) + bias
 
 
-def build_feedback_examples(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+def unsafe_route_penalty(analysis: PromptAnalysis, strategy: InferenceStrategy) -> tuple[float, list[str]]:
+    penalty = 0.0
+    reasons: list[str] = []
+    is_large_route = strategy.modelRoute in {ModelRoute.OPENAI_LARGE, ModelRoute.GEMINI_LARGE}
+
+    if analysis.riskLevel == RiskLevel.HIGH:
+        if not is_large_route:
+            penalty += 0.25
+            reasons.append("high risk routed to a small model")
+        if not strategy.verify:
+            penalty += 0.20
+            reasons.append("high risk without verification")
+        if strategy.retry.value == "none":
+            penalty += 0.10
+            reasons.append("high risk without retry")
+
+    if analysis.taskType == TaskType.STOCK:
+        if not is_large_route:
+            penalty += 0.25
+            reasons.append("stock task routed to a small model")
+        if not strategy.verify:
+            penalty += 0.15
+            reasons.append("stock task without verification")
+        if strategy.retry.value == "none":
+            penalty += 0.05
+            reasons.append("stock task without retry")
+
+    if analysis.taskType == TaskType.MATH and analysis.complexityLevel in {"medium", "high"}:
+        if not is_large_route:
+            penalty += 0.20
+            reasons.append("medium/high math routed to a small model")
+        if not strategy.verify:
+            penalty += 0.14
+            reasons.append("medium/high math without verification")
+        if strategy.retry.value == "none":
+            penalty += 0.06
+            reasons.append("medium/high math without retry")
+
+    if analysis.taskType == TaskType.CODING and analysis.complexityLevel == "high":
+        if not is_large_route:
+            penalty += 0.20
+            reasons.append("high-complexity coding routed to a small model")
+        if not strategy.verify:
+            penalty += 0.14
+            reasons.append("high-complexity coding without verification")
+        if strategy.retry.value == "none":
+            penalty += 0.06
+            reasons.append("high-complexity coding without retry")
+
+    return min(0.65, penalty), reasons
+
+
+def build_feedback_examples(rows: list[dict[str, Any]], unsafe_penalty_weight: float = 1.0) -> list[dict[str, Any]]:
     grouped: dict[str, dict[str, Any]] = {}
     for row in rows:
         payload = row["payload"]
@@ -44,6 +96,8 @@ def build_feedback_examples(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
             or 512
         )
         feature_names, features = encode_features(analysis, max_completion_tokens)
+        route_penalty, penalty_reasons = unsafe_route_penalty(analysis, strategy)
+        weighted_penalty = min(0.65, route_penalty * max(0.0, unsafe_penalty_weight))
         if request_id not in grouped:
             grouped[request_id] = {
                 "request_id": payload.get("requestId", ""),
@@ -51,6 +105,8 @@ def build_feedback_examples(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
                 "features": features,
                 "action_key": key,
                 "action_idx": ACTION_KEYS.index(key),
+                "unsafe_route_penalty": weighted_penalty,
+                "unsafe_route_penalty_reasons": penalty_reasons,
                 "reviewer_feedback": {},
             }
         feedback_by_reviewer = grouped[request_id]["reviewer_feedback"]
@@ -69,6 +125,9 @@ def build_feedback_examples(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
             continue
         rewards = [float(row["human_reward"]) for row in feedback]
         ratings = [int(row["rating"]) for row in feedback]
+        human_reward = sum(rewards) / len(rewards)
+        unsafe_penalty = float(item["unsafe_route_penalty"])
+        adjusted_reward = max(0.0, min(1.0, human_reward - unsafe_penalty))
         examples.append(
             {
                 "request_id": item["request_id"],
@@ -76,7 +135,10 @@ def build_feedback_examples(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
                 "features": item["features"],
                 "action_key": item["action_key"],
                 "action_idx": item["action_idx"],
-                "human_reward": sum(rewards) / len(rewards),
+                "human_reward": human_reward,
+                "adjusted_reward": adjusted_reward,
+                "unsafe_route_penalty": unsafe_penalty,
+                "unsafe_route_penalty_reasons": item["unsafe_route_penalty_reasons"],
                 "avg_rating": sum(ratings) / len(ratings),
                 "feedback_count": len(feedback),
                 "reviewer_count": len(item["reviewer_feedback"]),
@@ -87,10 +149,10 @@ def build_feedback_examples(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return examples
 
 
-def load_feedback_examples(limit: int | None) -> list[dict[str, Any]]:
+def load_feedback_examples(limit: int | None, unsafe_penalty_weight: float) -> list[dict[str, Any]]:
     store = UsageStore()
     rows = store.feedback_training_rows(limit=limit)
-    return build_feedback_examples(rows)
+    return build_feedback_examples(rows, unsafe_penalty_weight=unsafe_penalty_weight)
 
 
 def load_json_file(path: str) -> list[dict[str, Any]]:
@@ -114,6 +176,7 @@ def load_feedback_examples_from_json(
     feedback_json_path: str,
     usage_json_path: str | None,
     limit: int | None,
+    unsafe_penalty_weight: float,
 ) -> list[dict[str, Any]]:
     feedback_rows = load_json_file(feedback_json_path)
     if limit is not None:
@@ -156,7 +219,7 @@ def load_feedback_examples_from_json(
             f"{feedback_json_path} has {missing_payload_count} feedback rows without payload. "
             "Export usage_events too and pass --usage_json_path, or export feedback rows with payload included."
         )
-    return build_feedback_examples(rows)
+    return build_feedback_examples(rows, unsafe_penalty_weight=unsafe_penalty_weight)
 
 
 def load_initial_model(path: str | None, feature_names: list[str]) -> LinearRoutingModel:
@@ -191,6 +254,7 @@ def train_rlhf_bandit(
     epochs: int,
     lr: float,
     temperature: float,
+    unsafe_penalty_weight: float,
 ) -> tuple[LinearRoutingModel, list[dict[str, Any]]]:
     if not examples:
         raise ValueError("No feedback examples found. Run the app and submit Good/Bad feedback first.")
@@ -200,12 +264,14 @@ def train_rlhf_bandit(
     weights = [[float(v) for v in row] for row in model.weights]
     bias = [float(v) for v in model.bias]
     trainable_indices = [idx for idx, key in enumerate(ACTION_KEYS) if not key.startswith("local|")]
-    baseline = sum(ex["human_reward"] for ex in examples) / max(1, len(examples))
+    baseline = sum(float(ex.get("adjusted_reward", ex["human_reward"])) for ex in examples) / max(1, len(examples))
     history: list[dict[str, Any]] = []
 
     for epoch in range(1, epochs + 1):
         total_loss = 0.0
         total_reward = 0.0
+        total_human_reward = 0.0
+        total_penalty = 0.0
         for ex in examples:
             features = ex["features"]
             action_idx = int(ex["action_idx"])
@@ -214,7 +280,7 @@ def train_rlhf_bandit(
             local_action_idx = trainable_indices.index(action_idx)
             scores = [dot(weights[idx], features, bias[idx]) for idx in trainable_indices]
             probs = softmax(scores, temperature)
-            reward = float(ex["human_reward"])
+            reward = float(ex.get("adjusted_reward", ex["human_reward"]))
             advantage = reward - baseline
             chosen_prob = max(probs[local_action_idx], 1e-9)
             total_loss += -math.log(chosen_prob) * advantage
@@ -228,12 +294,16 @@ def train_rlhf_bandit(
 
             baseline = 0.95 * baseline + 0.05 * reward
             total_reward += reward
+            total_human_reward += float(ex["human_reward"])
+            total_penalty += float(ex.get("unsafe_route_penalty", 0.0))
 
         eval_metrics = evaluate_weights(weights, bias, examples, temperature)
         history.append(
             {
                 "epoch": epoch,
-                "avg_logged_reward": total_reward / max(1, len(examples)),
+                "avg_logged_reward": total_human_reward / max(1, len(examples)),
+                "avg_adjusted_reward": total_reward / max(1, len(examples)),
+                "avg_unsafe_route_penalty": total_penalty / max(1, len(examples)),
                 "avg_reviewers_per_example": eval_metrics["avg_reviewers_per_example"],
                 "policy_match_rate": eval_metrics["policy_match_rate"],
                 "positive_match_rate": eval_metrics["positive_match_rate"],
@@ -255,6 +325,9 @@ def train_rlhf_bandit(
             "lr": lr,
             "temperature": temperature,
             "initial_model_path": initial_model_path or "",
+            "reward": "adjusted_reward = clamp(human_reward - unsafe_route_penalty, 0, 1)",
+            "unsafe_route_penalty_max": 0.65,
+            "unsafe_penalty_weight": unsafe_penalty_weight,
         },
     )
     return trained, history
@@ -272,6 +345,10 @@ def evaluate_weights(
     positive_matches = 0
     route_counts: dict[str, int] = {}
     reviewer_total = 0
+    total_human_reward = 0.0
+    total_adjusted_reward = 0.0
+    total_penalty = 0.0
+    penalized_count = 0
 
     for ex in examples:
         features = ex["features"]
@@ -288,10 +365,20 @@ def evaluate_weights(
             positive += 1
             positive_matches += int(is_match)
         reviewer_total += int(ex.get("reviewer_count", 1))
+        total_human_reward += float(ex["human_reward"])
+        total_adjusted_reward += float(ex.get("adjusted_reward", ex["human_reward"]))
+        penalty = float(ex.get("unsafe_route_penalty", 0.0))
+        total_penalty += penalty
+        penalized_count += int(penalty > 0.0)
 
     return {
         "num_examples": len(examples),
         "avg_reviewers_per_example": reviewer_total / max(1, len(examples)),
+        "avg_human_reward": total_human_reward / max(1, len(examples)),
+        "avg_adjusted_reward": total_adjusted_reward / max(1, len(examples)),
+        "avg_unsafe_route_penalty": total_penalty / max(1, len(examples)),
+        "penalized_example_count": penalized_count,
+        "penalized_example_rate": penalized_count / max(1, len(examples)),
         "policy_match_rate": matches / max(1, len(examples)),
         "positive_match_rate": positive_matches / max(1, positive),
         "route_counts": route_counts,
@@ -311,6 +398,7 @@ def main():
     parser.add_argument("--epochs", type=int, default=50)
     parser.add_argument("--lr", type=float, default=0.08)
     parser.add_argument("--temperature", type=float, default=0.7)
+    parser.add_argument("--unsafe_penalty_weight", type=float, default=1.0)
     args = parser.parse_args()
 
     if args.sqlite_path:
@@ -321,15 +409,20 @@ def main():
             feedback_json_path=args.feedback_json_path,
             usage_json_path=args.usage_json_path or None,
             limit=args.limit or None,
+            unsafe_penalty_weight=args.unsafe_penalty_weight,
         )
     else:
-        examples = load_feedback_examples(limit=args.limit or None)
+        examples = load_feedback_examples(
+            limit=args.limit or None,
+            unsafe_penalty_weight=args.unsafe_penalty_weight,
+        )
     model, history = train_rlhf_bandit(
         examples=examples,
         initial_model_path=args.initial_model_path,
         epochs=args.epochs,
         lr=args.lr,
         temperature=args.temperature,
+        unsafe_penalty_weight=args.unsafe_penalty_weight,
     )
     metrics = evaluate_weights(model.weights, model.bias, examples, args.temperature)
 

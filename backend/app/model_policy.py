@@ -13,6 +13,7 @@ from .schemas import (
     RetryStrategy,
     RiskLevel,
     RouteCandidate,
+    TaskType,
 )
 
 
@@ -160,7 +161,7 @@ class ModelPolicy(Policy):
     ) -> tuple[InferenceStrategy, list[RouteCandidate]]:
         if force_mock:
             return self.fallback.choose(analysis, max_completion_tokens, force_mock=True)
-        if analysis.riskLevel == RiskLevel.HIGH:
+        if self._quality_guardrail_enabled() and self._needs_quality_guardrail(analysis):
             return self.fallback.choose(analysis, max_completion_tokens, force_mock=False)
 
         candidates = build_candidates(analysis, max_completion_tokens)
@@ -182,6 +183,21 @@ class ModelPolicy(Policy):
         if self.model.model_type == "linear_contextual_bandit_policy":
             return "RL contextual bandit policy selected the highest expected reward strategy from prompt analysis features."
         return "Learned linear routing model selected this strategy from prompt analysis features."
+
+    def _needs_quality_guardrail(self, analysis: PromptAnalysis) -> bool:
+        if analysis.riskLevel == RiskLevel.HIGH:
+            return True
+        if analysis.taskType == TaskType.STOCK:
+            return True
+        if analysis.taskType == TaskType.MATH and analysis.complexityLevel in {"medium", "high"}:
+            return True
+        if analysis.taskType == TaskType.CODING and analysis.complexityLevel == "high":
+            return True
+        return False
+
+    def _quality_guardrail_enabled(self) -> bool:
+        value = os.getenv("ROUTING_QUALITY_GUARDRAIL", "1").strip().lower()
+        return value not in {"0", "false", "off", "no"}
 
 
 def load_model_policy(path: str) -> ModelPolicy:
